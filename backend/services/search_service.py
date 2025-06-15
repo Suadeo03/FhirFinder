@@ -1,4 +1,5 @@
 import json
+import os
 from typing import List, Dict, Any
 from sentence_transformers import SentenceTransformer
 
@@ -7,10 +8,18 @@ class SimpleSearchService:
         # Load embedding model
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
         
-        # Load profiles
-        with open('/data/samples/sample_profiles.json', 'r') as f:
-            self.profiles = json.load(f)
+        # Get correct path to profiles - go up one level from backend to project root
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(os.path.dirname(current_dir))  # Go up 2 levels from services/
+        profiles_path = os.path.join(project_root, 'data', 'samples', 'sample_profiles.json')
         
+        # Create sample data if it doesn't exist
+        if not os.path.exists(profiles_path):
+            self._create_sample_data(profiles_path)
+        
+        # Load profiles
+        with open(profiles_path, 'r') as f:
+            self.profiles = json.load(f)
         # Pre-compute embeddings
         self.profile_embeddings = self._compute_embeddings()
     
