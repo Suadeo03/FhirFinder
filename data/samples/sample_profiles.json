@@ -1,0 +1,30 @@
+[
+  {
+    "id": "662871000124101",
+    "name": "Referral to patient advocate program",
+    "description": "Referral process for connecting patients with advocacy services",
+    "keywords": ["referral", "patient", "advocate", "advocacy"],
+    "category": "procedure",
+    "resource_type": "ServiceRequest",
+    "use_contexts": [
+      {
+        "scenario": "Patient needs help navigating healthcare system",
+        "keywords": ["navigation", "support", "guidance"]
+      }
+    ]
+  },
+  {
+    "id": "841161000124105", 
+    "name": "Provision of payment for one month rent",
+    "description": "Financial assistance program for rental payment support",
+    "keywords": ["payment", "rent", "housing", "financial", "assistance"],
+    "category": "financial_assistance",
+    "resource_type": "Coverage", 
+    "use_contexts": [
+      {
+        "scenario": "Patient facing eviction or housing instability",
+        "keywords": ["eviction", "housing", "unstable", "homeless"]
+      }
+    ]
+  }
+]
