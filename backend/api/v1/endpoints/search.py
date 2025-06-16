@@ -1,10 +1,10 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import List, Optional
-from services.search_service import SimpleSearchService
+from services.search_service import EnhancedSearchService
 
 router = APIRouter()
-search_service = SimpleSearchService()
+search_service = EnhancedSearchService()
 
 class SearchRequest(BaseModel):
     query: str
