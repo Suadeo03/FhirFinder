@@ -1,0 +1,78 @@
+# backend/models/database/models.py
+from sqlalchemy import Column, String, Integer, DateTime, Boolean, Text, Float, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB
+from datetime import datetime
+import uuid
+
+Base = declarative_base()
+
+class Dataset(Base):
+    """Track uploaded datasets and their processing status"""
+    __tablename__ = "datasets"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    filename = Column(String(255), nullable=False)
+    description = Column(Text)
+    status = Column(String(50), nullable=False, default="uploaded")  # uploaded, processing, ready, active, failed
+    upload_date = Column(DateTime, default=datetime.utcnow)
+    processed_date = Column(DateTime)
+    activated_date = Column(DateTime)
+    record_count = Column(Integer, default=0)
+    error_message = Column(Text)
+    file_size = Column(Integer)  # in bytes
+    file_path = Column(String(500))  # where the file is stored
+    
+    # Relationship to profiles
+    profiles = relationship("Profile", back_populates="dataset", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<Dataset(id='{self.id}', name='{self.name}', status='{self.status}')>"
+
+class Profile(Base):
+    """FHIR profiles from processed datasets"""
+    __tablename__ = "profiles"
+    
+    id = Column(String, primary_key=True)  # FHIR profile ID
+    name = Column(String(500), nullable=False)
+    description = Column(Text)
+    keywords = Column(JSONB)  # ["keyword1", "keyword2", ...]
+    category = Column(String(100))
+    resource_type = Column(String(100))
+    use_contexts = Column(JSONB)  # [{"scenario": "...", "keywords": [...]}]
+    
+    # Metadata
+    dataset_id = Column(String, ForeignKey("datasets.id"), nullable=False)
+    is_active = Column(Boolean, default=False)
+    created_date = Column(DateTime, default=datetime.utcnow)
+    
+    # Search optimization
+    embedding_vector = Column(JSONB)  # Store precomputed embeddings
+    search_text = Column(Text)  # Combined text for full-text search
+    
+    # Relationship to dataset
+    dataset = relationship("Dataset", back_populates="profiles")
+    
+    def __repr__(self):
+        return f"<Profile(id='{self.id}', name='{self.name[:50]}...', active={self.is_active})>"
+
+class ProcessingJob(Base):
+    """Track background processing jobs"""
+    __tablename__ = "processing_jobs"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    dataset_id = Column(String, ForeignKey("datasets.id"), nullable=False)
+    job_type = Column(String(50), nullable=False)  # upload, process, activate
+    status = Column(String(50), nullable=False, default="pending")  # pending, running, completed, failed
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+    progress_percent = Column(Integer, default=0)
+    error_message = Column(Text)
+    
+    # Job-specific data
+    job_data = Column(JSONB)  # Store any job-specific parameters
+    
+    def __repr__(self):
+        return f"<ProcessingJob(id='{self.id}', type='{self.job_type}', status='{self.status}')>"

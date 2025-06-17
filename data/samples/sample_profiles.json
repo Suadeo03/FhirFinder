@@ -6,6 +6,7 @@
     "keywords": ["referral", "patient", "advocate", "advocacy"],
     "category": "procedure",
     "resource_type": "ServiceRequest",
+    "version":"R5",
     "use_contexts": [
       {
         "scenario": "Patient needs help navigating healthcare system",
@@ -19,6 +20,7 @@
     "description": "Financial assistance program for rental payment support",
     "keywords": ["payment", "rent", "housing", "financial", "assistance"],
     "category": "financial_assistance",
+    "version":"R5",
     "resource_type": "Coverage", 
     "use_contexts": [
       {
@@ -35,6 +37,7 @@
                 "description": "Financial assistance program for rental payment support",
                 "keywords": ["payment", "rent", "housing", "financial", "assistance"],
                 "category": "financial_assistance",
+                "version":"R5",
                 "resource_type": "Coverage",
                 "use_contexts": [
                     {
@@ -53,6 +56,7 @@
                 "description": "Referral process for connecting patients with advocacy services",
                 "keywords": ["referral", "patient", "advocate", "advocacy"],
                 "category": "procedure",
+                "version":"R5",
                 "resource_type": "ServiceRequest",
                 "use_contexts": [
                     {
@@ -71,6 +75,7 @@
                 "description": "Financial assistance for pest control services in housing",
                 "keywords": ["payment", "pest", "control", "housing", "infestation"],
                 "category": "procedure",
+                "version":"R5",
                 "resource_type": "ServiceRequest",
                 "use_contexts": [
                     {
@@ -89,6 +94,7 @@
                 "description": "Clinical finding indicating presence of pest infestation in housing",
                 "keywords": ["bug", "infestation", "pest", "housing", "finding"],
                 "category": "finding",
+                "version":"R5",
                 "resource_type": "Observation",
                 "use_contexts": [
                     {
