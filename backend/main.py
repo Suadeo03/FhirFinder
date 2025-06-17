@@ -1,19 +1,28 @@
-from fastapi import FastAPI
+# backend/main.py (UPDATED)
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from api.v1.endpoints.search import router as search_router
-from api.v1.endpoints.datasets import router as datasets_router
 from sqlalchemy.orm import Session
 
+# Import routers
+from api.v1.endpoints.search import router as search_router
+from api.v1.endpoints.datasets import router as datasets_router
+
+# Import database setup
 from config.database import init_database, get_db
 from services.database_search_service import DatabaseSearchService
 
+# Initialize database on startup
 init_database()
-app = FastAPI(title="FHIR Profile Recommender")
 
+app = FastAPI(
+    title="FHIR Profile Recommender",
+    description="AI-powered FHIR profile search and recommendation system",
+    version="2.0.0"
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:8080"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,7 +62,6 @@ async def health(db: Session = Depends(get_db)):
             "database": "error",
             "error": str(e)
         }
-
 
 if __name__ == "__main__":
     import uvicorn

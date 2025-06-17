@@ -1,19 +1,25 @@
+# backend/requirements.txt (UNIVERSAL VERSIONS)
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-sentence-transformers==2.2.2
-pandas==2.1.3
-redis==5.0.1
 python-multipart==0.0.6
 pydantic==2.5.0
 scikit-learn==1.3.2
+pandas==2.1.3
 
 # Database dependencies
 sqlalchemy==2.0.23
 alembic==1.13.1
 
 # File processing
-openpyxl==3.1.2  # For Excel files
-xlrd==2.0.1      # For older Excel files
+openpyxl==3.1.2
+xlrd==2.0.1
 
-# Background jobs (for future use)
+# ML dependencies - universal versions that work
+torch
+transformers>=4.30.0,<4.36.0
+huggingface-hub>=0.16.0,<0.18.0
+sentence-transformers==2.2.2
+
+# Optional (for later)
+redis==5.0.1
 celery==5.3.4

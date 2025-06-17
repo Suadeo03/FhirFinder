@@ -2,7 +2,7 @@
 from sqlalchemy import Column, String, Integer, DateTime, Boolean, Text, Float, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 from datetime import datetime
 import uuid
 
@@ -38,10 +38,10 @@ class Profile(Base):
     id = Column(String, primary_key=True)  # FHIR profile ID
     name = Column(String(500), nullable=False)
     description = Column(Text)
-    keywords = Column(JSONB)  # ["keyword1", "keyword2", ...]
+    keywords = Column(JSON)  # ["keyword1", "keyword2", ...]
     category = Column(String(100))
     resource_type = Column(String(100))
-    use_contexts = Column(JSONB)  # [{"scenario": "...", "keywords": [...]}]
+    use_contexts = Column(JSON)  # [{"scenario": "...", "keywords": [...]}]
     
     # Metadata
     dataset_id = Column(String, ForeignKey("datasets.id"), nullable=False)
@@ -49,7 +49,7 @@ class Profile(Base):
     created_date = Column(DateTime, default=datetime.utcnow)
     
     # Search optimization
-    embedding_vector = Column(JSONB)  # Store precomputed embeddings
+    embedding_vector = Column(JSON)  # Store precomputed embeddings
     search_text = Column(Text)  # Combined text for full-text search
     
     # Relationship to dataset
@@ -72,7 +72,7 @@ class ProcessingJob(Base):
     error_message = Column(Text)
     
     # Job-specific data
-    job_data = Column(JSONB)  # Store any job-specific parameters
+    job_data = Column(JSON)  # Store any job-specific parameters
     
     def __repr__(self):
         return f"<ProcessingJob(id='{self.id}', type='{self.job_type}', status='{self.status}')>"
