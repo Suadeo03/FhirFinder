@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UMLS Code Loader Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 6px;
+            min-height: 50px;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .loading {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        
+        .code-result {
+            background: #f8f9fa;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .code-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .code-badge {
+            background: #4CAF50;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .definition {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .metadata {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .meta-item {
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            font-size: 14px;
+        }
+        
+        .semantic-types ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        
+        details {
+            margin-top: 15px;
+        }
+        
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .test-buttons {
+            margin-bottom: 20px;
+        }
+        
+        .test-buttons button {
+            background-color: #17a2b8;
+            margin-bottom: 10px;
+        }
+        
+        .test-buttons button:hover {
+            background-color: #138496;
+        }
+        
+        #connectionStatus {
+            margin-bottom: 20px;
+        }
+        
+        .api-config {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .api-config input {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HL7 Navigator</h1>
+        
+        <div id="connectionStatus"></div>
+        
+        <div class="api-config">
+            <h3>FHIR Navigator</h3>
+            <label for="textQuery">Enter Text Query:</label>
+            <input type="text" id="textQuery" value="" placeholder="Enter query here...">
+        </div>
+        
+        <div class="test-buttons">
+            <button id="lookupBtn" onclick="lookupBtn()">Lookup</button>
+            <button onclick="testRawUMLS()">Add to use case</button>
+            <button onclick="clearResult()">Clear</button>
+        </div>
+        
+        <div class="form-group">
+            <label for="codeInput">Data Input</label>
+            <input type="text" id="codeInput" placeholder="" value="">
+        </div>
+        
+        <div>
+            <button onclick="loadCode()" id="loadBtn">Find Matches</button>
+            <button onclick="clearResult()">Clear</button>
+        </div>
+        
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        class FhirTextQuery {
+            constructor(baseUrl = 'http://localhost:8000') {
+                this.baseUrl = baseUrl;
+            }
+
+            async getQuery(query) {
+                try {
+                    const response = await fetch(`${this.baseUrl}/api/v1/search/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        mode: 'cors',
+                        body: JSON.stringify({
+                            query: `${query}`,
+                            limit: 2
+                        })
+                    });
+
+                    console.log(`Response status: ${response.status}`);
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error(`API Error: ${response.status} - ${errorText}`);
+                        throw new Error(`API Error: ${response.status} - ${errorText}`);
+                    }
+
+                    const data = await response.json();
+                    console.log('Successful response:', data);
+                    return data;
+
+                } catch (error) {
+                    console.error('Error loading code:', error);
+                    throw error;
+                }
+            }
+        }
+
+        let newQuery = new FhirTextQuery();
+
+        async function lookupBtn() {
+            const textQuery = document.getElementById('textQuery');
+            const btn = document.getElementById('lookupBtn'); 
+            const text = textQuery.value.trim();
+
+            if (!text) {
+                showResult('<div class="error">Please enter something</div>');
+                return;
+            }
+
+            try {
+                btn.disabled = true;
+                showResult('<div class="loading">🔄 Looking up...</div>');
+                
+                const result = await newQuery.getQuery(text);
+         
+                  if (result && (result.results || result.data)) {
+                    showResult(displayCodeResult(result));
+                } else {
+                    showResult(`<div class="error">❌ ${result.message || 'Unknown error'}</div>`);
+                }
+            } catch (error) {
+                console.error('Frontend error:', error);
+                showResult(`<div class="error">❌ Error: ${error.message}</div>`);
+            } finally {
+                btn.disabled = false; 
+            }
+        }
+
+        // Placeholder functions (you'll need to implement these)
+        function showResult(html) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = html;
+            resultDiv.style.display = 'block';
+        }
+
+        function displayCodeResult(result) {
+            return `<div class="success">Query successful: ${JSON.stringify(result)}</div>`;
+        }
+
+    
+
+        function clearResult() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'none';
+            resultDiv.innerHTML = '';
+        }
+
+        function loadCode() {
+            showResult('<div class="loading">🔄 Loading code...</div>');
+        }
+
+        function getCode() {
+            showResult('<div class="loading">🔄 Getting code...</div>');
+        }
+
+        function testConnection() {
+            showResult('<div class="loading">🔄 Testing connection...</div>');
+        }
+
+        // Test connection on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Auto-test connection
+            setTimeout(testConnection, 500);
+        });
+
+        // Allow Enter key to load code
+        document.getElementById('codeInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadCode();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,7 +1,10 @@
 # backend/main.py (UPDATED)
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+import logging as logger
+import os
 
 # Import routers
 from api.v1.endpoints.search import router as search_router
@@ -31,6 +34,11 @@ app.add_middleware(
 # Include routers
 app.include_router(search_router, prefix="/api/v1", tags=["search"])
 app.include_router(datasets_router, prefix="/api/v1", tags=["datasets"])
+
+static_dir = "static"
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    logger.info(f"📁 Static files mounted from {static_dir}")
 
 @app.get("/")
 async def root():
