@@ -177,6 +177,41 @@ async def activate_dataset(dataset_id: str, db: Session = Depends(get_db)):
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Activation failed: {str(e)}")
+    
+@router.put("/datasets/{dataset_id}/deactivate", response_model=ProcessResponse)
+async def deactivate_dataset(dataset_id: str, db: Session = Depends(get_db)):
+    """Activate a processed dataset (make it the active search dataset)"""
+    try:
+        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        if dataset.status != "active":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Dataset must be in 'active' status to deactivate. Current status: {dataset.status}"
+            )
+        
+        # Activate the dataset
+        success = etl_service.deactivate_dataset(dataset_id, db)
+        
+        if success:
+            return ProcessResponse(
+                success=True,
+                message=f"Dataset '{dataset.name}' deactivated successfully. It is no longer in search dataset.",
+                dataset_id=dataset_id
+            )
+        else:
+            return ProcessResponse(
+                success=False,
+                message="Failed to activate dataset",
+                dataset_id=dataset_id
+            )
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Activation failed: {str(e)}")
+    
+
 
 @router.delete("/datasets/{dataset_id}")
 async def delete_dataset(dataset_id: str, db: Session = Depends(get_db)):

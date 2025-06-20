@@ -44,7 +44,7 @@ class DatabaseSearchService:
                 profile
             )
             
-            # Only include if above threshold
+            # Threshold setting
             if combined_score > 0.3:
                 result = {
                     "id": profile.id,

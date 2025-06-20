@@ -288,3 +288,30 @@ class ETLService:
             print(f"Error activating dataset {dataset_id}: {e}")
             db.rollback()
             return False
+        
+    def deactivate_dataset(self, dataset_id: str, db: Session) -> bool:
+        """Deactivate a dataset (remove from search)"""
+        try:
+      
+            dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+            if not dataset:
+                raise ValueError(f"Dataset {dataset_id} not found")
+            
+            # deactivate profiles
+            profiles_updated = db.query(Profile).filter(
+                Profile.dataset_id == dataset_id
+            ).update({"is_active": False})
+            
+            # Update dataset status
+            dataset.status = "inactive"
+            dataset.deactivated_date = datetime.utcnow()
+            
+            db.commit()
+            
+            print(f"Deactivated {profiles_updated} profiles from dataset {dataset.name}")
+            return True
+            
+        except Exception as e:
+            print(f"Error activating dataset {dataset_id}: {e}")
+            db.rollback()
+            return False

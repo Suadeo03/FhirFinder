@@ -16,10 +16,11 @@ class Dataset(Base):
     name = Column(String(255), nullable=False)
     filename = Column(String(255), nullable=False)
     description = Column(Text)
-    status = Column(String(50), nullable=False, default="uploaded")  # uploaded, processing, ready, active, failed
+    status = Column(String(50), nullable=False, default="uploaded")  # uploaded, processing, ready, active, inactive, failed
     upload_date = Column(DateTime, default=datetime.utcnow)
     processed_date = Column(DateTime)
     activated_date = Column(DateTime)
+    deactivated_date = Column(DateTime)
     record_count = Column(Integer, default=0)
     error_message = Column(Text)
     file_size = Column(Integer)  # in bytes
