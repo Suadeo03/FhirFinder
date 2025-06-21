@@ -54,6 +54,8 @@ class DatabaseSearchService:
                     "category": profile.category,
                     "resource_type": profile.resource_type,
                     "use_contexts": profile.use_contexts or [],
+                    "version": profile.version,
+                    "fhir_resource": profile.fhir_resource or {},
                     "confidence_score": float(combined_score),
                     "profile_similarity": float(profile_similarity),
                     "context_similarity": float(context_similarity),

@@ -36,14 +36,15 @@ class Profile(Base):
     """FHIR profiles from processed datasets"""
     __tablename__ = "profiles"
     
-    id = Column(String, primary_key=True)  # FHIR profile ID
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4())) 
     name = Column(String(500), nullable=False)
     description = Column(Text)
     keywords = Column(JSON)  # ["keyword1", "keyword2", ...]
     category = Column(String(100))
+    version = Column(String(50))  # e.g. "1.0.0"
     resource_type = Column(String(100))
     use_contexts = Column(JSON)  # [{"scenario": "...", "keywords": [...]}]
-    
+    fhir_resource = Column(JSON)
     # Metadata
     dataset_id = Column(String, ForeignKey("datasets.id"), nullable=False)
     is_active = Column(Boolean, default=False)

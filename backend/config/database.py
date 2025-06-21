@@ -16,6 +16,7 @@ engine = create_engine(
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 def create_tables():
     """Create all database tables"""
     Base.metadata.create_all(bind=engine)
