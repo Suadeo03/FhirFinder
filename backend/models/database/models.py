@@ -15,7 +15,7 @@ class Dataset(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
     filename = Column(String(255), nullable=False)
-    description = Column(Text)
+    description = Column(Text) #Description of the dataset
     status = Column(String(50), nullable=False, default="uploaded")  # uploaded, processing, ready, active, inactive, failed
     upload_date = Column(DateTime, default=datetime.utcnow)
     processed_date = Column(DateTime)

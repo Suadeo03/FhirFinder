@@ -2,7 +2,7 @@
 import pandas as pd
 import json
 import uuid
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Union, Optional
 from sqlalchemy.orm import Session
 from models.database.models import Dataset, Profile, ProcessingJob
 from sentence_transformers import SentenceTransformer
@@ -90,7 +90,7 @@ class ETLService:
         return transformed
     
     def _transform_single_profile(self, row: Dict, row_index: int) -> Optional[Dict]:
-        """Transform a single row into profile format"""
+        """Transform a single row into profile format - UPDATED VERSION"""
         # Handle different column name formats
         profile = {}
         
@@ -120,10 +120,9 @@ class ETLService:
             'category', 'Category', 'type', 'Type', 'Class', 'class'
         ]) or "general"
 
-        # version (optional, default to 1.0.0)
         profile['version'] = self._extract_field(row, [
-            'version', 'Version', 'profile_version', 'Profile Version'
-        ]) or "unknown version"
+            'version'
+        ]) or "version"
         
         # Resource type
         profile['resource_type'] = self._extract_field(row, [
@@ -133,192 +132,58 @@ class ETLService:
         # Use contexts (optional advanced field)
         profile['use_contexts'] = self._parse_use_contexts(row)
         
-        # FHIR Resource handling_-----------------------------------------------------------------------------------------------
-        fhir_resource_raw = self._extract_field(row, [
-            'fhir_resource', 'FHIR_Resource', 'fhir_data', 'resource_data', 'json_data'
-        ])
+        # FHIR Resource handling - ENHANCED
+        fhir_resource_raw = self._extract_field(row, ['fhir_resource', 'fhir', 'resource', 'structure_definition'])
+        profile['fhir_resource'] = self._parse_keywords(fhir_resource_raw)
         
-        if fhir_resource_raw:
-            try:
-                # Try to parse as JSON to validate
-                if fhir_resource_raw.startswith('{'):
-                    fhir_data = json.loads(fhir_resource_raw)
-                    profile['fhir_resource'] = fhir_data
-                else:
-                    # Might be base64 encoded
-                    try:
-                        import base64
-                        decoded = base64.b64decode(fhir_resource_raw).decode('utf-8')
-                        fhir_data = json.loads(decoded)
-                        profile['fhir_resource'] = fhir_data
-                    except:
-                        # Store as string if can't decode
-                        profile['fhir_resource'] = fhir_resource_raw
-            except json.JSONDecodeError:
-                print(f"Warning: Invalid JSON in FHIR resource for row {row_index}")
-                profile['fhir_resource'] = None
-        else:
-            profile['fhir_resource'] = None
-        
+        # NEW: Extract FHIR resource fields for search
+        profile['fhir_searchable_text'] = self._extract_fhir_fields(fhir_resource_raw)
+
         return profile
     
-    def _extract_fhir_data_elements(self, fhir_resource: Dict) -> str:
-        """Universal FHIR data element extractor for any resource type"""
-        if not fhir_resource or not isinstance(fhir_resource, dict):
-            return ""
-            
-        data_elements = []
-        element_paths = []
-        semantic_tags = []
+    def get_dataset_fields(self, raw_data: List[Dict]) -> str:
+        """Get comma-separated list of all field names in dataset"""
+        all_keys = set()
+        for row in raw_data:
+            if isinstance(row, dict):
+                all_keys.update(row.keys())
+        return ", ".join(sorted(all_keys))
+    
+    def get_fhir_dataset_fields(self, raw_data: List[Dict]) -> str:
+        """Get comma-separated list of all FHIR field names in dataset"""
+        all_fhir_fields = set()
         
-        def extract_json_structure(obj, path="", depth=0, max_depth=10):
-            """Recursively extract structure from any JSON object"""
-            if depth > max_depth:  # Prevent infinite recursion
-                return
-                
-            if isinstance(obj, dict):
-                for key, value in obj.items():
-                    current_path = f"{path}.{key}" if path else key
-                    
-                    # Add the raw element path
-                    element_paths.append(current_path)
-                    
-                    # Add semantic meaning based on key patterns (FHIR-agnostic)
-                    semantic_tags.extend(self._get_semantic_tags_for_key(key, value, current_path))
-                    
-                    # Add data type information
-                    data_elements.extend(self._get_data_type_tags(key, value, current_path))
-                    
-                    # Recurse into nested structures
-                    if isinstance(value, (dict, list)):
-                        extract_json_structure(value, current_path, depth + 1)
+        for row in raw_data:
+            if isinstance(row, dict):
+                fhir_resource_raw = self._extract_field(row, ['fhir_resource', 'fhir', 'resource', 'structure_definition'])
+                if fhir_resource_raw:
+                    try:
+                        if isinstance(fhir_resource_raw, str):
+                            fhir_data = json.loads(fhir_resource_raw)
+                        else:
+                            fhir_data = fhir_resource_raw
                         
-            elif isinstance(obj, list) and obj:
-                # Handle arrays
-                data_elements.append(f"{path}_array")
-                if len(obj) > 0:
-                    data_elements.append(f"{path}_multiple_values")
-                    # Analyze first item to understand array structure
-                    extract_json_structure(obj[0], path, depth + 1)
+                        self._collect_fhir_field_names(fhir_data, all_fhir_fields)
+                    except Exception as e:
+                        print(f"Error parsing FHIR resource: {e}")
+                        continue
         
-        # Extract resource type and add base tags
-        resource_type = fhir_resource.get('resourceType', fhir_resource.get('type', 'Unknown'))
-        data_elements.extend([
-            f"{resource_type}_resource",
-            f"{resource_type.lower()}_data",
-            "fhir_resource",
-            "structured_data"
-        ])
+        return ", ".join(sorted(all_fhir_fields))
+
+    def _collect_fhir_field_names(self, data: Union[Dict, List, Any], field_names: set, max_depth: int = 5, current_depth: int = 0):
+        """Recursively collect all field names from FHIR structure"""
+        if current_depth >= max_depth:
+            return
         
-        # Extract all structural elements
-        extract_json_structure(fhir_resource)
+        if isinstance(data, dict):
+            for key, value in data.items():
+                field_names.add(key)
+                if isinstance(value, (dict, list)):
+                    self._collect_fhir_field_names(value, field_names, max_depth, current_depth + 1)
         
-        # Add resource-specific semantic context
-        if resource_type:
-            scoped_paths = [f"{resource_type}.{path}" for path in element_paths[:50]]  # Limit to prevent explosion
-            element_paths.extend(scoped_paths)
-        
-        # Combine all extracted elements
-        all_elements = data_elements + element_paths + semantic_tags
-        
-        # Remove duplicates and clean
-        unique_elements = list(set(all_elements))
-        clean_elements = [elem.strip() for elem in unique_elements if elem and elem.strip() and len(elem) < 200]
-        
-        return ' '.join(clean_elements[:500])  # Limit total elements to prevent search text explosion
-    
-    def _get_semantic_tags_for_key(self, key: str, value: Any, path: str) -> List[str]:
-        """Generate semantic tags based on key names (works for any JSON)"""
-        tags = []
-        key_lower = key.lower()
-        
-        # Identity and tracking patterns
-        if any(pattern in key_lower for pattern in ['id', 'identifier', 'uuid', 'reference']):
-            tags.extend(['identifiable', 'trackable', 'referenceable'])
-            
-        # Name and text patterns  
-        if any(pattern in key_lower for pattern in ['name', 'title', 'label', 'display']):
-            tags.extend(['named', 'textual', 'displayable'])
-            
-        # Contact and communication patterns
-        if any(pattern in key_lower for pattern in ['phone', 'email', 'telecom', 'contact', 'communication']):
-            tags.extend(['contactable', 'communicable', 'reachable'])
-            
-        # Location and address patterns
-        if any(pattern in key_lower for pattern in ['address', 'location', 'city', 'country', 'postal', 'geographic']):
-            tags.extend(['locatable', 'geographic', 'addressable'])
-            
-        # Time and date patterns
-        if any(pattern in key_lower for pattern in ['date', 'time', 'period', 'instant', 'when', 'occurred']):
-            tags.extend(['temporal', 'dated', 'time_bound'])
-            
-        # Status and state patterns
-        if any(pattern in key_lower for pattern in ['status', 'state', 'active', 'enabled', 'valid']):
-            tags.extend(['stateful', 'status_trackable', 'lifecycle_managed'])
-            
-        # Classification and coding patterns
-        if any(pattern in key_lower for pattern in ['code', 'coding', 'category', 'class', 'type', 'system']):
-            tags.extend(['coded', 'classified', 'categorized', 'systematic'])
-            
-        # Measurement and value patterns
-        if any(pattern in key_lower for pattern in ['value', 'quantity', 'amount', 'measure', 'result', 'score']):
-            tags.extend(['measurable', 'quantifiable', 'valued'])
-            
-        # Relationship patterns
-        if any(pattern in key_lower for pattern in ['subject', 'patient', 'performer', 'author', 'source']):
-            tags.extend(['relational', 'linked', 'associated'])
-            
-        # Clinical patterns
-        if any(pattern in key_lower for pattern in ['clinical', 'medical', 'health', 'diagnosis', 'condition']):
-            tags.extend(['clinical', 'medical', 'healthcare'])
-            
-        # Extension and customization patterns
-        if any(pattern in key_lower for pattern in ['extension', 'custom', 'additional', 'extra']):
-            tags.extend(['extensible', 'customizable', 'flexible'])
-            
-        # Text and narrative patterns
-        if any(pattern in key_lower for pattern in ['text', 'narrative', 'description', 'note', 'comment']):
-            tags.extend(['textual', 'narrative', 'descriptive'])
-            
-        return tags
-    
-    def _get_data_type_tags(self, key: str, value: Any, path: str) -> List[str]:
-        """Generate data type tags based on value types"""
-        tags = []
-        
-        if isinstance(value, str):
-            tags.append(f"{path}_string")
-            # Check for special string patterns
-            if '@' in value:
-                tags.append(f"{path}_email_format")
-            elif value.isdigit():
-                tags.append(f"{path}_numeric_string")
-            elif any(date_pattern in value for date_pattern in ['-', '/', 'T', ':']):
-                tags.append(f"{path}_date_format")
-                
-        elif isinstance(value, bool):
-            tags.append(f"{path}_boolean")
-            
-        elif isinstance(value, (int, float)):
-            tags.append(f"{path}_numeric")
-            
-        elif isinstance(value, list):
-            tags.append(f"{path}_array")
-            if value:
-                if all(isinstance(item, dict) for item in value):
-                    tags.append(f"{path}_object_array")
-                elif all(isinstance(item, str) for item in value):
-                    tags.append(f"{path}_string_array")
-                    
-        elif isinstance(value, dict):
-            tags.append(f"{path}_object")
-            # Check for common object patterns
-            if 'system' in value and 'code' in value:
-                tags.append(f"{path}_coding_object")
-            elif 'reference' in value:
-                tags.append(f"{path}_reference_object")
-                
-        return tags
+        elif isinstance(data, list):
+            for item in data[:5]:  # Limit to avoid too much processing
+                self._collect_fhir_field_names(item, field_names, max_depth, current_depth + 1)
     
     def _extract_field(self, row: Dict, possible_keys: List[str]) -> Optional[str]:
         """Extract field value trying multiple possible column names"""
@@ -373,6 +238,58 @@ class ETLService:
             "keywords": self._parse_keywords(scenarios)
         }]
     
+    def _extract_fhir_fields(self, fhir_resource_data: Any) -> str:
+        """Extract field names/keys from FHIR resource structure for searchable text"""
+        if not fhir_resource_data:
+            return ""
+        
+        field_names = set()  # Use set to avoid duplicates
+        
+        try:
+            # If it's a string, try to parse as JSON
+            if isinstance(fhir_resource_data, str):
+                fhir_data = json.loads(fhir_resource_data)
+            elif isinstance(fhir_resource_data, dict):
+                fhir_data = fhir_resource_data
+            elif isinstance(fhir_resource_data, list):
+                # Handle list of FHIR resources
+                all_field_names = set()
+                for resource in fhir_resource_data:
+                    resource_fields = self._extract_fhir_fields(resource)
+                    if resource_fields:
+                        all_field_names.update(resource_fields.split())
+                return " ".join(sorted(all_field_names))
+            else:
+                return ""
+            
+            # Extract field names recursively
+            self._extract_fhir_keys_recursive(fhir_data, field_names)
+            
+            return " ".join(sorted(field_names))
+            
+        except Exception as e:
+            print(f"Error extracting FHIR field names: {e}")
+            return ""
+
+    def _extract_fhir_keys_recursive(self, data: Union[Dict, List, Any], field_names: set, max_depth: int = 5, current_depth: int = 0):
+        """Recursively extract field names/keys from FHIR structure"""
+        if current_depth >= max_depth:
+            return
+        
+        if isinstance(data, dict):
+            for key, value in data.items():
+                # Add all field names to make them searchable
+                field_names.add(key)
+                
+                # Continue recursively for nested structures
+                if isinstance(value, (dict, list)):
+                    self._extract_fhir_keys_recursive(value, field_names, max_depth, current_depth + 1)
+        
+        elif isinstance(data, list):
+            for item in data[:10]:  # Limit to first 10 items to avoid too much processing
+                if isinstance(item, (dict, list)):
+                    self._extract_fhir_keys_recursive(item, field_names, max_depth, current_depth + 1)
+    
     def _validate_profiles(self, profiles_data: List[Dict]) -> List[Dict]:
         """Validate profile data"""
         validated = []
@@ -402,7 +319,7 @@ class ETLService:
         return validated
     
     def _load_profiles(self, profiles_data: List[Dict], dataset_id: str, db: Session) -> int:
-        """Load validated profiles into database"""
+        """Load validated profiles into database - UPDATED VERSION"""
         loaded_count = 0
         
         # Session reset for transaction issues
@@ -416,15 +333,13 @@ class ETLService:
                 # Base search text from profile metadata
                 base_search_text = f"{profile_data['name']} {profile_data['description']} {' '.join(profile_data['keywords'])}"
                 
-                # Add FHIR schema/data elements if FHIR resource present
-                if profile_data.get('fhir_resource'):
-                    fhir_schema_text = self._extract_fhir_data_elements(profile_data['fhir_resource'])
-                    search_text = f"{base_search_text} {fhir_schema_text}"
-                else:
-                    search_text = base_search_text
+                # NEW: Add FHIR resource fields to searchable text
+                fhir_search_text = profile_data.get('fhir_searchable_text', '')
+                if fhir_search_text:
+                    base_search_text += f" {fhir_search_text}"
                 
                 # Generate embedding from complete search text (now includes FHIR elements)
-                embedding = self.model.encode([search_text])[0].tolist()
+                embedding = self.model.encode([base_search_text])[0].tolist()
                 
                 # Create profile record
                 profile = Profile(
@@ -433,12 +348,11 @@ class ETLService:
                     description=profile_data['description'],
                     keywords=profile_data['keywords'],
                     category=profile_data['category'],
-                    version=profile_data['version'],  
                     resource_type=profile_data['resource_type'],
                     use_contexts=profile_data['use_contexts'],
                     fhir_resource=profile_data.get('fhir_resource'),
                     dataset_id=dataset_id,
-                    search_text=search_text,  # Now includes FHIR data elements
+                    search_text=base_search_text,  # Now includes FHIR fields
                     embedding_vector=embedding
                 )
                 
@@ -449,7 +363,7 @@ class ETLService:
                     for key, value in profile_data.items():
                         if hasattr(existing, key):
                             setattr(existing, key, value)
-                    existing.search_text = search_text
+                    existing.search_text = base_search_text
                     existing.embedding_vector = embedding
                     existing.dataset_id = dataset_id
                 else:

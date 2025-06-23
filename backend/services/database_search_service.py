@@ -81,7 +81,7 @@ class DatabaseSearchService:
             return cosine_similarity([query_embedding], [profile_embedding])[0][0]
         else:
             # Fallback: compute embedding on the fly
-            profile_text = f"{profile.name} {profile.description} {' '.join(profile.keywords or [])}"
+            profile_text = f"{profile.name} {profile.description} {' '.join(profile.keywords or [])} {profile.category or ''} {profile.resource_type or ''} {profile.fhir_resource or ''} " 
             profile_embedding = self.model.encode([profile_text])[0]
             return cosine_similarity([query_embedding], [profile_embedding])[0][0]
     

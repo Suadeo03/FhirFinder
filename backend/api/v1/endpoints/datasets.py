@@ -267,7 +267,9 @@ async def preview_dataset_profiles(
                 "description": p.description[:200] + "..." if len(p.description or "") > 200 else p.description,
                 "keywords": p.keywords,
                 "category": p.category,
-                "resource_type": p.resource_type
+                "version": p.version,
+                "resource_type": p.resource_type,
+                "fhir_resource": p.fhir_resource
             }
             for p in profiles
         ]
