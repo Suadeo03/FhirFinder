@@ -1,0 +1,778 @@
+﻿id,name,description,keywords,category,version,resource_type,use_contexts,fhir_resource
+,Patient_HL7,"The data in the Resource covers the ""who"" information about the patient: its attributes are focused on the demographic information necessary to support the administrative, financial and logistic procedures. A Patient record is generally created and maintained by each organization providing care for a patient. A patient or animal receiving care at multiple organizations may therefore have its information present in multiple Patient Resources.","[""patient"", ""person""]",JSON_FHIR,v5.0.0,Patient,"[""scenario"":""patient reource full list of elements""]","[{
+    ""resourceType"" : ""Patient"",
+    ""id"" : ""f001"",
+    ""text"" : {
+      ""status"" : ""generated"",
+      ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\""><p style=\""border: 1px #661aff solid; background-color: #e6e6ff; padding: 10px;\""><b>Pieter van de Heuvel </b> male, DoB: 1944-11-17 ( id:\u00a0738472983\u00a0(use:\u00a0USUAL))</p><hr/><table class=\""grid\""><tr><td style=\""background-color: #f3f5da\"" title=\""Record is active\"">Active:</td><td>true</td><td style=\""background-color: #f3f5da\"" title=\""Known status of Patient\"">Deceased:</td><td>false</td></tr><tr><td style=\""background-color: #f3f5da\"" title=\""Known Marital status of Patient\"">Marital Status:</td><td><span title=\""Codes: {http://terminology.hl7.org/CodeSystem/v3-MaritalStatus M}\"">Getrouwd</span></td><td style=\""background-color: #f3f5da\"" title=\""Known multipleBirth status of Patient\"">Multiple Birth:</td><td colspan=\""3\"">true</td></tr><tr><td style=\""background-color: #f3f5da\"" title=\""Other Ids (see the one above)\"">Other Id:</td><td colspan=\""3\"">id:\u00a0?ngen-9?\u00a0(use:\u00a0USUAL)</td></tr><tr><td style=\""background-color: #f3f5da\"" title=\""Ways to contact the Patient\"">Contact Details:</td><td colspan=\""3\""><ul><li>ph: 0648352638(MOBILE)</li><li><a href=\""mailto:p.heuvel@gmail.com\"">p.heuvel@gmail.com</a></li><li>Van Egmondkade 23 Amsterdam 1024 RJ NLD (HOME)</li></ul></td></tr><tr><td style=\""background-color: #f3f5da\"" title=\""Languages spoken\"">Language:</td><td colspan=\""3\""><span title=\""Codes: {urn:ietf:bcp:47 nl}\"">Nederlands</span> (preferred)</td></tr><tr><td style=\""background-color: #f3f5da\"" title=\""Nominated Contact: Emergency Contact\"">Emergency Contact:</td><td colspan=\""3\""><ul><li>Sarah Abels </li><li>ph: 0690383372(MOBILE)</li></ul></td></tr><tr><td style=\""background-color: #f3f5da\"" title=\""Patient Links\"">Links:</td><td colspan=\""3\""><ul><li>Managing Organization: <a href=\""organization-example-f001-burgers.html\"">Organization/f001: Burgers University Medical Centre</a> &quot;Burgers University Medical Center&quot;</li></ul></td></tr></table></div>""
+    },
+    ""identifier"" : [{
+      ""use"" : ""usual"",
+      ""system"" : ""urn:oid:2.16.840.1.113883.2.4.6.3"",
+      ""value"" : ""738472983""
+    },
+    {
+      ""use"" : ""usual"",
+      ""system"" : ""urn:oid:2.16.840.1.113883.2.4.6.3""
+    }],
+    ""active"" : true,
+    ""name"" : [{
+      ""use"" : ""usual"",
+      ""family"" : ""van de Heuvel"",
+      ""given"" : [""Pieter""],
+      ""suffix"" : [""MSc""]
+    }],
+    ""telecom"" : [{
+      ""system"" : ""phone"",
+      ""value"" : ""0648352638"",
+      ""use"" : ""mobile""
+    },
+    {
+      ""system"" : ""email"",
+      ""value"" : ""p.heuvel@gmail.com"",
+      ""use"" : ""home""
+    }],
+    ""gender"" : ""male"",
+    ""birthDate"" : ""1944-11-17"",
+    ""deceasedBoolean"" : false,
+    ""address"" : [{
+      ""use"" : ""home"",
+      ""line"" : [""Van Egmondkade 23""],
+      ""city"" : ""Amsterdam"",
+      ""postalCode"" : ""1024 RJ"",
+      ""country"" : ""NLD""
+    }],
+    ""maritalStatus"" : {
+      ""coding"" : [{
+        ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-MaritalStatus"",
+        ""code"" : ""M"",
+        ""display"" : ""Married""
+      }],
+      ""text"" : ""Getrouwd""
+    },
+    ""multipleBirthBoolean"" : true,
+    ""contact"" : [{
+      ""relationship"" : [{
+        ""coding"" : [{
+          ""system"" : ""http://terminology.hl7.org/CodeSystem/v2-0131"",
+          ""code"" : ""C""
+        }]
+      }],
+      ""name"" : {
+        ""use"" : ""usual"",
+        ""family"" : ""Abels"",
+        ""given"" : [""Sarah""]
+      },
+      ""telecom"" : [{
+        ""system"" : ""phone"",
+        ""value"" : ""0690383372"",
+        ""use"" : ""mobile""
+      }]
+    }],
+    ""communication"" : [{
+      ""language"" : {
+        ""coding"" : [{
+          ""system"" : ""urn:ietf:bcp:47"",
+          ""code"" : ""nl"",
+          ""display"" : ""Dutch""
+        }],
+        ""text"" : ""Nederlands""
+      },
+      ""preferred"" : true
+    }],
+    ""managingOrganization"" : {
+      ""reference"" : ""Organization/f001"",
+      ""display"" : ""Burgers University Medical Centre""
+    }
+  }]"
+,Observation_HL7,"Observations are a central element in healthcare, used to support diagnosis, monitor progress, determine baselines and patterns and even capture demographic characteristics, as well as capture results of tests performed on products and substances. Most observations are simple name/value pair assertions with some metadata, but some observations group other observations together logically, or even are multi-component observations. Note that the DiagnosticReport resource provides a clinical or workflow context for a set of observations and the Observation resource is referenced by DiagnosticReport to represent laboratory, imaging, and other clinical and diagnostic data to form a complete report.","[""vitals"",""laboratory data"",""imaging"",""clinical findings"",""device measurements""]",JSON_FHIR,v5.0.0,Observation,"[""scenario"":""observation for a glucose test""]","[{
+  ""resourceType"" : ""Observation"",
+  ""id"" : ""f001"",
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\""><p><b>Generated Narrative: Observation</b><a name=\""f001\""> </a></p><div style=\""display: inline-block; background-color: #d9e0e7; padding: 6px; margin: 4px; border: 1px solid #8da1b4; border-radius: 5px; line-height: 60%\""><p style=\""margin-bottom: 0px\"">Resource Observation &quot;f001&quot; </p></div><p><b>identifier</b>: id:\u00a06323\u00a0(use:\u00a0OFFICIAL)</p><p><b>status</b>: final</p><p><b>code</b>: Glucose [Moles/volume] in Blood <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://loinc.org/\"">LOINC</a>#15074-8)</span></p><p><b>subject</b>: <a href=\""patient-example-f001-pieter.html\"">Patient/f001: P. van de Heuvel</a> &quot;Pieter VAN DE HEUVEL&quot;</p><p><b>effective</b>: 2013-04-02T09:30:10+01:00</p><p><b>issued</b>: 4 Apr 2013, 1:30:10 am</p><p><b>performer</b>: <a href=\""practitioner-example-f005-al.html\"">Practitioner/f005: A. Langeveld</a> &quot;Langeveld ANNE&quot;</p><p><b>value</b>: 6.3 mmol/l<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code mmol/L = 'mmol/L')</span></p><p><b>interpretation</b>: High <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-v3-ObservationInterpretation.html\"">ObservationInterpretation</a>#H)</span></p><h3>ReferenceRanges</h3><table class=\""grid\""><tr><td>-</td><td><b>Low</b></td><td><b>High</b></td></tr><tr><td>*</td><td>3.1 mmol/l<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code mmol/L = 'mmol/L')</span></td><td>6.2 mmol/l<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code mmol/L = 'mmol/L')</span></td></tr></table></div>""
+  },
+  ""identifier"" : [{
+    ""use"" : ""official"",
+    ""system"" : ""http://www.bmc.nl/zorgportal/identifiers/observations"",
+    ""value"" : ""6323""
+  }],
+  ""status"" : ""final"",
+  ""code"" : {
+    ""coding"" : [{
+      ""system"" : ""http://loinc.org"",
+      ""code"" : ""15074-8"",
+      ""display"" : ""Glucose [Moles/volume] in Blood""
+    }]
+  },
+  ""subject"" : {
+    ""reference"" : ""Patient/f001"",
+    ""display"" : ""P. van de Heuvel""
+  },
+  ""effectiveDateTime"" : ""2013-04-02T09:30:10+01:00"",
+  ""issued"" : ""2013-04-03T15:30:10+01:00"",
+  ""performer"" : [{
+    ""reference"" : ""Practitioner/f005"",
+    ""display"" : ""A. Langeveld""
+  }],
+  ""valueQuantity"" : {
+    ""value"" : 6.3,
+    ""unit"" : ""mmol/l"",
+    ""system"" : ""http://unitsofmeasure.org"",
+    ""code"" : ""mmol/L""
+  },
+  ""interpretation"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"",
+      ""code"" : ""H"",
+      ""display"" : ""High""
+    }]
+  }],
+  ""referenceRange"" : [{
+    ""low"" : {
+      ""value"" : 3.1,
+      ""unit"" : ""mmol/l"",
+      ""system"" : ""http://unitsofmeasure.org"",
+      ""code"" : ""mmol/L""
+    },
+    ""high"" : {
+      ""value"" : 6.2,
+      ""unit"" : ""mmol/l"",
+      ""system"" : ""http://unitsofmeasure.org"",
+      ""code"" : ""mmol/L""
+    }
+  }]
+}]"
+,Observation_HL7,"Observations are a central element in healthcare, used to support diagnosis, monitor progress, determine baselines and patterns and even capture demographic characteristics, as well as capture results of tests performed on products and substances. Most observations are simple name/value pair assertions with some metadata, but some observations group other observations together logically, or even are multi-component observations. Note that the DiagnosticReport resource provides a clinical or workflow context for a set of observations and the Observation resource is referenced by DiagnosticReport to represent laboratory, imaging, and other clinical and diagnostic data to form a complete report.","[""vitals"",""laboratory data"",""imaging"",""clinical findings"",""device measurements""]",JSON_FHIR,v5.0.0,Observation,"[""scenario"":""observation for a hemoglobin test""]","[{
+  ""resourceType"" : ""Observation"",
+  ""id"" : ""f005"",
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\""><p><b>Generated Narrative: Observation</b><a name=\""f005\""> </a></p><div style=\""display: inline-block; background-color: #d9e0e7; padding: 6px; margin: 4px; border: 1px solid #8da1b4; border-radius: 5px; line-height: 60%\""><p style=\""margin-bottom: 0px\"">Resource Observation &quot;f005&quot; </p></div><p><b>identifier</b>: <span title=\""   urn:oid:2.16.840.1.113883.4.642.1.7   \"">id:\u00a06327\u00a0(use:\u00a0OFFICIAL)</span></p><p><b>status</b>: final</p><p><b>code</b>: Hemoglobin [Mass/volume] in Blood <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://loinc.org/\"">LOINC</a>#718-7)</span></p><p><b>subject</b>: <a href=\""patient-example-f001-pieter.html\"">Patient/f001: P. van de Heuvel</a> &quot;Pieter VAN DE HEUVEL&quot;</p><p><b>effective</b>: 2013-04-05T10:30:10+01:00</p><p><b>issued</b>: 6 Apr 2013, 1:30:10 am</p><p><b>performer</b>: <a href=\""practitioner-example-f005-al.html\"">Practitioner/f005: A. Langeveld</a> &quot;Langeveld ANNE&quot;</p><p><b>value</b>: 7.2 g/dl<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code g/dL = 'g/dL')</span></p><p><b>interpretation</b>: Low <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-v3-ObservationInterpretation.html\"">ObservationInterpretation</a>#L)</span></p><h3>ReferenceRanges</h3><table class=\""grid\""><tr><td>-</td><td><b>Low</b></td><td><b>High</b></td></tr><tr><td>*</td><td>7.5 g/dl<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code g/dL = 'g/dL')</span></td><td>10 g/dl<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code g/dL = 'g/dL')</span></td></tr></table></div>""
+  },
+  ""identifier"" : [{
+    ""use"" : ""official"",
+    ""system"" : ""http://www.bmc.nl/zorgportal/identifiers/observations"",
+    ""value"" : ""6327""
+  }],
+  ""status"" : ""final"",
+  ""code"" : {
+    ""coding"" : [{
+      ""system"" : ""http://loinc.org"",
+      ""code"" : ""718-7"",
+      ""display"" : ""Hemoglobin [Mass/volume] in Blood""
+    }]
+  },
+  ""subject"" : {
+    ""reference"" : ""Patient/f001"",
+    ""display"" : ""P. van de Heuvel""
+  },
+  ""effectiveDateTime"" : ""2013-04-05T10:30:10+01:00"",
+  ""issued"" : ""2013-04-05T15:30:10+01:00"",
+  ""performer"" : [{
+    ""reference"" : ""Practitioner/f005"",
+    ""display"" : ""A. Langeveld""
+  }],
+  ""valueQuantity"" : {
+    ""value"" : 7.2,
+    ""unit"" : ""g/dl"",
+    ""system"" : ""http://unitsofmeasure.org"",
+    ""code"" : ""g/dL""
+  },
+  ""interpretation"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"",
+      ""code"" : ""L"",
+      ""display"" : ""Low""
+    }]
+  }],
+  ""referenceRange"" : [{
+    ""low"" : {
+      ""value"" : 7.5,
+      ""unit"" : ""g/dl"",
+      ""system"" : ""http://unitsofmeasure.org"",
+      ""code"" : ""g/dL""
+    },
+    ""high"" : {
+      ""value"" : 10,
+      ""unit"" : ""g/dl"",
+      ""system"" : ""http://unitsofmeasure.org"",
+      ""code"" : ""g/dL""
+    }
+  }]
+}]"
+,Observation_HL7,"Observations are a central element in healthcare, used to support diagnosis, monitor progress, determine baselines and patterns and even capture demographic characteristics, as well as capture results of tests performed on products and substances. Most observations are simple name/value pair assertions with some metadata, but some observations group other observations together logically, or even are multi-component observations. Note that the DiagnosticReport resource provides a clinical or workflow context for a set of observations and the Observation resource is referenced by DiagnosticReport to represent laboratory, imaging, and other clinical and diagnostic data to form a complete report.","[""vitals"",""laboratory data"",""imaging"",""clinical findings"",""device measurements""]",JSON_FHIR,v5.0.0,Observation,"[""scenario"":""observation for a blood panel group"",""scenario"":""Blood type and Indirect antibody screen panel - Blood""]","[{
+  ""resourceType"" : ""Observation"",
+  ""id"" : ""bgpanel"",
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\""><p><b>Generated Narrative: Observation</b><a name=\""bgpanel\""> </a></p><div style=\""display: inline-block; background-color: #d9e0e7; padding: 6px; margin: 4px; border: 1px solid #8da1b4; border-radius: 5px; line-height: 60%\""><p style=\""margin-bottom: 0px\"">Resource Observation &quot;bgpanel&quot; </p></div><p><b>status</b>: final</p><p><b>category</b>: Laboratory <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-observation-category.html\"">Observation Category Codes</a>#laboratory)</span></p><p><b>code</b>: Blood Group Panel <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://loinc.org/\"">LOINC</a>#34532-2 &quot; Blood type and Indirect antibody screen panel - Blood&quot;)</span></p><p><b>subject</b>: <a href=\""broken-link.html\"">Patient/infant</a></p><p><b>effective</b>: 2018-03-11T16:07:54Z</p><p><b>hasMember</b>: </p><ul><li><a href=\""observation-example-bloodgroup.html\"">Observation/bloodgroup</a></li><li><a href=\""observation-example-rhstatus.html\"">Observation/rhstatus</a></li></ul></div>""
+  },
+  ""status"" : ""final"",
+  ""category"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/observation-category"",
+      ""code"" : ""laboratory"",
+      ""display"" : ""Laboratory""
+    }],
+    ""text"" : ""Laboratory""
+  }],
+  ""code"" : {
+    ""coding"" : [{
+      ""system"" : ""http://loinc.org"",
+      ""code"" : ""34532-2"",
+      ""display"" : "" Blood type and Indirect antibody screen panel - Blood""
+    }],
+    ""text"" : ""Blood Group Panel""
+  },
+  ""subject"" : {
+    ""reference"" : ""Patient/infant""
+  },
+  ""effectiveDateTime"" : ""2018-03-11T16:07:54+00:00"",
+  ""hasMember"" : [{
+    ""reference"" : ""Observation/bloodgroup""
+  },
+  {
+    ""reference"" : ""Observation/rhstatus""
+  }]
+}]"
+,Observation_HL7,"Observations are a central element in healthcare, used to support diagnosis, monitor progress, determine baselines and patterns and even capture demographic characteristics, as well as capture results of tests performed on products and substances. Most observations are simple name/value pair assertions with some metadata, but some observations group other observations together logically, or even are multi-component observations. Note that the DiagnosticReport resource provides a clinical or workflow context for a set of observations and the Observation resource is referenced by DiagnosticReport to represent laboratory, imaging, and other clinical and diagnostic data to form a complete report.","[""vitals"",""laboratory data"",""imaging"",""clinical findings"",""device measurements"", ""vital signs profile""]",JSON_FHIR,v5.0.0,Observation,"[""scenario"":""observation for taking a temperature"",""scenario"":""Body temperature""]","[{
+  ""resourceType"" : ""Observation"",
+  ""id"" : ""f202"",
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\""><p><b>Generated Narrative: Observation</b><a name=\""f202\""> </a></p><div style=\""display: inline-block; background-color: #d9e0e7; padding: 6px; margin: 4px; border: 1px solid #8da1b4; border-radius: 5px; line-height: 60%\""><p style=\""margin-bottom: 0px\"">Resource Observation &quot;f202&quot; </p></div><p><b>status</b>: <span title=\""  Oral temperature was measured on April fourth  \"">entered-in-error</span></p><p><b>category</b>: <span title=\""  category code is A code that classifies the general type of observation being made. This is used for searching, sorting and display purposes. \"">Vital Signs <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-observation-category.html\"">Observation Category Codes</a>#vital-signs)</span></span></p><p><b>code</b>: Temperature <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (acme.lab#BT &quot;Body temperature&quot;; <a href=\""https://loinc.org/\"">LOINC</a>#8310-5 &quot;Body temperature&quot;; <a href=\""https://loinc.org/\"">LOINC</a>#8331-1 &quot;Oral temperature&quot;; <a href=\""https://browser.ihtsdotools.org/\"">SNOMED CT</a>#56342008 &quot;Temperature taking&quot;)</span></p><p><b>subject</b>: <span title=\""  No identifier could be provided to this observation  \""><a href=\""patient-example-f201-roel.html\"">Patient/f201: Roel</a> &quot;Roel&quot;</span></p><p><b>issued</b>: 4 Apr 2013, 11:27:00 pm</p><p><b>performer</b>: <a href=\""practitioner-example-f201-ab.html\"">Practitioner/f201</a> &quot;Dokter Bronsig&quot;</p><p><b>value</b>: 39 degrees C<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code Cel = 'Cel')</span></p><p><b>interpretation</b>: High <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-v3-ObservationInterpretation.html\"">ObservationInterpretation</a>#H)</span></p><p><b>bodySite</b>: <span title=\""  In the meantime a new oral temperature is measured  &amp;#10;  http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3418963/  \"">Oral cavity <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://browser.ihtsdotools.org/\"">SNOMED CT</a>#74262004)</span></span></p><p><b>method</b>: Oral temperature taking <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://browser.ihtsdotools.org/\"">SNOMED CT</a>#89003005)</span></p><h3>ReferenceRanges</h3><table class=\""grid\""><tr><td>-</td><td><b>High</b></td></tr><tr><td>*</td><td><span title=\""   0..* Provides guide for interpretation   \"">38.2 degrees C</span></td></tr></table></div>""
+  },
+  ""status"" : ""entered-in-error"",
+  ""category"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/observation-category"",
+      ""code"" : ""vital-signs"",
+      ""display"" : ""Vital Signs""
+    }]
+  }],
+  ""code"" : {
+    ""coding"" : [{
+      ""system"" : ""http://acme.lab"",
+      ""code"" : ""BT"",
+      ""display"" : ""Body temperature""
+    },
+    {
+      ""system"" : ""http://loinc.org"",
+      ""code"" : ""8310-5"",
+      ""display"" : ""Body temperature""
+    },
+    {
+      ""system"" : ""http://loinc.org"",
+      ""code"" : ""8331-1"",
+      ""display"" : ""Oral temperature""
+    },
+    {
+      ""system"" : ""http://snomed.info/sct"",
+      ""code"" : ""56342008"",
+      ""display"" : ""Temperature taking""
+    }],
+    ""text"" : ""Temperature""
+  },
+  ""subject"" : {
+    ""reference"" : ""Patient/f201"",
+    ""display"" : ""Roel""
+  },
+  ""issued"" : ""2013-04-04T13:27:00+01:00"",
+  ""performer"" : [{
+    ""reference"" : ""Practitioner/f201""
+  }],
+  ""valueQuantity"" : {
+    ""value"" : 39,
+    ""unit"" : ""degrees C"",
+    ""system"" : ""http://unitsofmeasure.org"",
+    ""code"" : ""Cel""
+  },
+  ""interpretation"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"",
+      ""code"" : ""H""
+    }]
+  }],
+  ""bodySite"" : {
+    ""coding"" : [{
+      ""system"" : ""http://snomed.info/sct"",
+      ""code"" : ""74262004"",
+      ""display"" : ""Oral cavity""
+    }]
+  },
+  ""method"" : {
+    ""coding"" : [{
+      ""system"" : ""http://snomed.info/sct"",
+      ""code"" : ""89003005"",
+      ""display"" : ""Oral temperature taking""
+    }]
+  },
+  ""referenceRange"" : [{
+    ""high"" : {
+      ""value"" : 38.2,
+      ""unit"" : ""degrees C""
+    }
+  }]
+}]"
+,Observation_HL7,"Observations are a central element in healthcare, used to support diagnosis, monitor progress, determine baselines and patterns and even capture demographic characteristics, as well as capture results of tests performed on products and substances. Most observations are simple name/value pair assertions with some metadata, but some observations group other observations together logically, or even are multi-component observations. Note that the DiagnosticReport resource provides a clinical or workflow context for a set of observations and the Observation resource is referenced by DiagnosticReport to represent laboratory, imaging, and other clinical and diagnostic data to form a complete report.","[""vitals"",""laboratory data"",""imaging"",""clinical findings"",""device measurements"", ""vital signs profile""]",JSON_FHIR,v5.0.0,Observation,"[""scenario"":""observation for heart rate"",""scenario"":""vital signs heart rate""]","[{
+  ""resourceType"" : ""Observation"",
+  ""id"" : ""heart-rate"",
+  ""meta"" : {
+    ""profile"" : [""http://hl7.org/fhir/StructureDefinition/vitalsigns""]
+  },
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\""><p><b>Generated Narrative: Observation</b><a name=\""heart-rate\""> </a></p><div style=\""display: inline-block; background-color: #d9e0e7; padding: 6px; margin: 4px; border: 1px solid #8da1b4; border-radius: 5px; line-height: 60%\""><p style=\""margin-bottom: 0px\"">Resource Observation &quot;heart-rate&quot; </p><p style=\""margin-bottom: 0px\"">Profile: <a href=\""vitalsigns.html\"">Vital Signs Profile</a></p></div><p><b>status</b>: final</p><p><b>category</b>: Vital Signs <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-observation-category.html\"">Observation Category Codes</a>#vital-signs)</span></p><p><b>code</b>: Heart rate <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://loinc.org/\"">LOINC</a>#8867-4)</span></p><p><b>subject</b>: <a href=\""patient-example.html\"">Patient/example</a> &quot;Peter CHALMERS&quot;</p><p><b>effective</b>: 1999-07-02</p><p><b>value</b>: 44 beats/minute<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code /min = '/min')</span></p></div>""
+  },
+  ""status"" : ""final"",
+  ""category"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/observation-category"",
+      ""code"" : ""vital-signs"",
+      ""display"" : ""Vital Signs""
+    }],
+    ""text"" : ""Vital Signs""
+  }],
+  ""code"" : {
+    ""coding"" : [{
+      ""system"" : ""http://loinc.org"",
+      ""code"" : ""8867-4"",
+      ""display"" : ""Heart rate""
+    }],
+    ""text"" : ""Heart rate""
+  },
+  ""subject"" : {
+    ""reference"" : ""Patient/example""
+  },
+  ""effectiveDateTime"" : ""1999-07-02"",
+  ""valueQuantity"" : {
+    ""value"" : 44,
+    ""unit"" : ""beats/minute"",
+    ""system"" : ""http://unitsofmeasure.org"",
+    ""code"" : ""/min""
+  }
+}]"
+,Observation_HL7,"Observations are a central element in healthcare, used to support diagnosis, monitor progress, determine baselines and patterns and even capture demographic characteristics, as well as capture results of tests performed on products and substances. Most observations are simple name/value pair assertions with some metadata, but some observations group other observations together logically, or even are multi-component observations. Note that the DiagnosticReport resource provides a clinical or workflow context for a set of observations and the Observation resource is referenced by DiagnosticReport to represent laboratory, imaging, and other clinical and diagnostic data to form a complete report.","[""vitals"",""laboratory data"",""imaging"",""clinical findings"",""device measurements"", ""vital signs profile""]",JSON_FHIR,v5.0.0,Observation,"[""scenario"":""observation for blood pressure"",""scenario"":""Blood pressure systolic & diastolic""]","[{
+  ""resourceType"" : ""Observation"",
+  ""id"" : ""blood-pressure"",
+  ""meta"" : {
+    ""profile"" : [""http://hl7.org/fhir/StructureDefinition/vitalsigns""]
+  },
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\""><p><b>Generated Narrative: Observation</b><a name=\""blood-pressure\""> </a></p><div style=\""display: inline-block; background-color: #d9e0e7; padding: 6px; margin: 4px; border: 1px solid #8da1b4; border-radius: 5px; line-height: 60%\""><p style=\""margin-bottom: 0px\"">Resource Observation &quot;blood-pressure&quot; </p><p style=\""margin-bottom: 0px\"">Profile: <a href=\""vitalsigns.html\"">Vital Signs Profile</a></p></div><p><b>identifier</b>: id:\u00a0urn:uuid:187e0c12-8dd2-67e2-99b2-bf273c878281</p><p><b>basedOn</b>: <span title=\""   demonstrating the use of the baseOn element with a fictive identifier \""><span/></span></p><p><b>status</b>: final</p><p><b>category</b>: Vital Signs <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-observation-category.html\"">Observation Category Codes</a>#vital-signs)</span></p><p><b>code</b>: Blood pressure systolic &amp; diastolic <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://loinc.org/\"">LOINC</a>#85354-9 &quot;Blood pressure panel with all children optional&quot;)</span></p><p><b>subject</b>: <a href=\""patient-example.html\"">Patient/example</a> &quot;Peter CHALMERS&quot;</p><p><b>effective</b>: 2012-09-17</p><p><b>performer</b>: <a href=\""practitioner-example.html\"">Practitioner/example</a> &quot;Adam CAREFUL&quot;</p><p><b>interpretation</b>: <span title=\""    an interpretation offered to the combination observation\n        generally, it would only be appropriate to offer an interpretation\n        of an observation that has no value if it has &quot;COMP&quot; (component)\n        observations    \"">Below low normal <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-v3-ObservationInterpretation.html\"">ObservationInterpretation</a>#L &quot;low&quot;)</span></span></p><p><b>bodySite</b>: <span title=\"" The BodySite can be captured in a LOINC code but am showing it here to demonstrate populating the element  \"">Right arm <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://browser.ihtsdotools.org/\"">SNOMED CT</a>#368209003)</span></span></p><blockquote><p><b>component</b></p><p><b>code</b>: <span title=\"" \n           Observations are often coded in multiple code systems.\n           - LOINC provides a very specific code (though not more specific in this particular case)\n           - snomed provides a clinically relevant code that is usually less granular than LOINC\n           - the source system provides its own code, which may be less or more granular than LOINC\n\nthis is shown here to demonstrate  the concept of translations within the codeableConcept datatype. The diastolic code below only has a LOINC code\n            \"">Systolic blood pressure <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://loinc.org/\"">LOINC</a>#8480-6; <a href=\""https://browser.ihtsdotools.org/\"">SNOMED CT</a>#271649006; clinical-codes#bp-s &quot;Systolic Blood pressure&quot;)</span></span></p><p><b>value</b>: 107 mmHg<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code mm[Hg] = 'mmHg')</span></p><p><b>interpretation</b>: <span title=\""    an interpretation for the individual composite observation  \"">Normal <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-v3-ObservationInterpretation.html\"">ObservationInterpretation</a>#N &quot;normal&quot;)</span></span></p></blockquote><blockquote><p><b>component</b></p><p><b>code</b>: <span title=\""    this codes only has a LOINC code    \"">Diastolic blood pressure <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://loinc.org/\"">LOINC</a>#8462-4)</span></span></p><p><b>value</b>: 60 mmHg<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code mm[Hg] = 'mmHg')</span></p><p><b>interpretation</b>: <span title=\""    an interpretation for the individual composite observation  \"">Below low normal <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-v3-ObservationInterpretation.html\"">ObservationInterpretation</a>#L &quot;low&quot;)</span></span></p></blockquote></div>""
+  },
+  ""identifier"" : [{
+    ""system"" : ""urn:ietf:rfc:3986"",
+    ""value"" : ""urn:uuid:187e0c12-8dd2-67e2-99b2-bf273c878281""
+  }],
+  ""basedOn"" : [{
+    ""identifier"" : {
+      ""system"" : ""https://acme.org/identifiers"",
+      ""value"" : ""1234""
+    }
+  }],
+  ""status"" : ""final"",
+  ""category"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/observation-category"",
+      ""code"" : ""vital-signs"",
+      ""display"" : ""Vital Signs""
+    }]
+  }],
+  ""code"" : {
+    ""coding"" : [{
+      ""system"" : ""http://loinc.org"",
+      ""code"" : ""85354-9"",
+      ""display"" : ""Blood pressure panel with all children optional""
+    }],
+    ""text"" : ""Blood pressure systolic & diastolic""
+  },
+  ""subject"" : {
+    ""reference"" : ""Patient/example""
+  },
+  ""effectiveDateTime"" : ""2012-09-17"",
+  ""performer"" : [{
+    ""reference"" : ""Practitioner/example""
+  }],
+  ""interpretation"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"",
+      ""code"" : ""L"",
+      ""display"" : ""low""
+    }],
+    ""text"" : ""Below low normal""
+  }],
+  ""bodySite"" : {
+    ""coding"" : [{
+      ""system"" : ""http://snomed.info/sct"",
+      ""code"" : ""368209003"",
+      ""display"" : ""Right arm""
+    }]
+  },
+  ""component"" : [{
+    ""code"" : {
+      ""coding"" : [{
+        ""system"" : ""http://loinc.org"",
+        ""code"" : ""8480-6"",
+        ""display"" : ""Systolic blood pressure""
+      },
+      {
+        ""system"" : ""http://snomed.info/sct"",
+        ""code"" : ""271649006"",
+        ""display"" : ""Systolic blood pressure""
+      },
+      {
+        ""system"" : ""http://acme.org/devices/clinical-codes"",
+        ""code"" : ""bp-s"",
+        ""display"" : ""Systolic Blood pressure""
+      }]
+    },
+    ""valueQuantity"" : {
+      ""value"" : 107,
+      ""unit"" : ""mmHg"",
+      ""system"" : ""http://unitsofmeasure.org"",
+      ""code"" : ""mm[Hg]""
+    },
+    ""interpretation"" : [{
+      ""coding"" : [{
+        ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"",
+        ""code"" : ""N"",
+        ""display"" : ""normal""
+      }],
+      ""text"" : ""Normal""
+    }]
+  },
+  {
+    ""code"" : {
+      ""coding"" : [{
+        ""system"" : ""http://loinc.org"",
+        ""code"" : ""8462-4"",
+        ""display"" : ""Diastolic blood pressure""
+      }]
+    },
+    ""valueQuantity"" : {
+      ""value"" : 60,
+      ""unit"" : ""mmHg"",
+      ""system"" : ""http://unitsofmeasure.org"",
+      ""code"" : ""mm[Hg]""
+    },
+    ""interpretation"" : [{
+      ""coding"" : [{
+        ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"",
+        ""code"" : ""L"",
+        ""display"" : ""low""
+      }],
+      ""text"" : ""Below low normal""
+    }]
+  }]
+}]"
+,Observation_HL7,"Observations are a central element in healthcare, used to support diagnosis, monitor progress, determine baselines and patterns and even capture demographic characteristics, as well as capture results of tests performed on products and substances. Most observations are simple name/value pair assertions with some metadata, but some observations group other observations together logically, or even are multi-component observations. Note that the DiagnosticReport resource provides a clinical or workflow context for a set of observations and the Observation resource is referenced by DiagnosticReport to represent laboratory, imaging, and other clinical and diagnostic data to form a complete report.","[""vitals"",""laboratory data"",""imaging"",""clinical findings"",""device measurements"", ""vital signs profile""]",JSON_FHIR,v5.0.0,Observation,"[""scenario"":""Oxygen saturation in Arterial blood by Pulse oximetry"",""scenario"":""Oxygen saturation in Arterial blood""]","[{
+  ""resourceType"" : ""Observation"",
+  ""id"" : ""satO2"",
+  ""meta"" : {
+    ""profile"" : [""http://hl7.org/fhir/StructureDefinition/vitalsigns""]
+  },
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\""><p><b>Generated Narrative: Observation</b><a name=\""satO2\""> </a></p><div style=\""display: inline-block; background-color: #d9e0e7; padding: 6px; margin: 4px; border: 1px solid #8da1b4; border-radius: 5px; line-height: 60%\""><p style=\""margin-bottom: 0px\"">Resource Observation &quot;satO2&quot; </p><p style=\""margin-bottom: 0px\"">Profile: <a href=\""vitalsigns.html\"">Vital Signs Profile</a></p></div><p><b>identifier</b>: id:\u00a0o1223435-10</p><p><b>partOf</b>: <a href=\""procedure-example-ob.html\"">Procedure/ob</a></p><p><b>status</b>: final</p><p><b>category</b>: Vital Signs <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-observation-category.html\"">Observation Category Codes</a>#vital-signs)</span></p><p><b>code</b>: Oxygen saturation in Arterial blood <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""https://loinc.org/\"">LOINC</a>#2708-6; <a href=\""https://loinc.org/\"">LOINC</a>#59408-5 &quot;Oxygen saturation in Arterial blood by Pulse oximetry&quot;; <a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-v3-mdc.html\"">ISO 11073-10101 Health informatics - Point-of-care</a>#150456 &quot;MDC_PULS_OXIM_SAT_O2&quot;)</span></p><p><b>subject</b>: <a href=\""patient-example.html\"">Patient/example</a> &quot;Peter CHALMERS&quot;</p><p><b>effective</b>: 2014-12-05T09:30:10+01:00</p><p><b>value</b>: 95 %<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code % = '%')</span></p><p><b>interpretation</b>: Normal (applies to non-numeric results) <span style=\""background: LightGoldenRodYellow; margin: 4px; border: 1px solid khaki\""> (<a href=\""http://terminology.hl7.org/5.1.0/CodeSystem-v3-ObservationInterpretation.html\"">ObservationInterpretation</a>#N &quot;Normal&quot;)</span></p><p><b>device</b>: <a href=\""devicemetric-example.html\"">DeviceMetric/example</a></p><h3>ReferenceRanges</h3><table class=\""grid\""><tr><td>-</td><td><b>Low</b></td><td><b>High</b></td></tr><tr><td>*</td><td>90 %<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code % = '%')</span></td><td>99 %<span style=\""background: LightGoldenRodYellow\""> (Details: UCUM code % = '%')</span></td></tr></table></div>""
+  },
+  ""identifier"" : [{
+    ""system"" : ""http://goodcare.org/observation/id"",
+    ""value"" : ""o1223435-10""
+  }],
+  ""partOf"" : [{
+    ""reference"" : ""Procedure/ob""
+  }],
+  ""status"" : ""final"",
+  ""category"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/observation-category"",
+      ""code"" : ""vital-signs"",
+      ""display"" : ""Vital Signs""
+    }],
+    ""text"" : ""Vital Signs""
+  }],
+  ""code"" : {
+    ""coding"" : [{
+      ""system"" : ""http://loinc.org"",
+      ""code"" : ""2708-6"",
+      ""display"" : ""Oxygen saturation in Arterial blood""
+    },
+    {
+      ""system"" : ""http://loinc.org"",
+      ""code"" : ""59408-5"",
+      ""display"" : ""Oxygen saturation in Arterial blood by Pulse oximetry""
+    },
+    {
+      ""system"" : ""urn:iso:std:iso:11073:10101"",
+      ""code"" : ""150456"",
+      ""display"" : ""MDC_PULS_OXIM_SAT_O2""
+    }]
+  },
+  ""subject"" : {
+    ""reference"" : ""Patient/example""
+  },
+  ""effectiveDateTime"" : ""2014-12-05T09:30:10+01:00"",
+  ""valueQuantity"" : {
+    ""value"" : 95,
+    ""unit"" : ""%"",
+    ""system"" : ""http://unitsofmeasure.org"",
+    ""code"" : ""%""
+  },
+  ""interpretation"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"",
+      ""code"" : ""N"",
+      ""display"" : ""Normal""
+    }],
+    ""text"" : ""Normal (applies to non-numeric results)""
+  }],
+  ""device"" : {
+    ""reference"" : ""DeviceMetric/example""
+  },
+  ""referenceRange"" : [{
+    ""low"" : {
+      ""value"" : 90,
+      ""unit"" : ""%"",
+      ""system"" : ""http://unitsofmeasure.org"",
+      ""code"" : ""%""
+    },
+    ""high"" : {
+      ""value"" : 99,
+      ""unit"" : ""%"",
+      ""system"" : ""http://unitsofmeasure.org"",
+      ""code"" : ""%""
+    }
+  }]
+}]"
+,Practitioner_HL7,Practitioner covers all individuals who are engaged in the healthcare process and healthcare-related services as part of their formal responsibilities and this Resource is used for attribution of activities and responsibilities to these individuals. ,"[""physicians"","" dentists"", ""pharmacists"", ""physician assistants"", ""nurses"", ""scribes""]",JSON_FHIR,v5.0.0,Practitioner,"[""scenario"":""referring practitioner doctor"",""scenario"":""doctor credentials""]","[{
+  ""resourceType"" : ""Practitioner"",
+  ""id"" : ""example"",
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\"">\n      <p>Dr Adam Careful is a Referring Practitioner for Acme Hospital from 1-Jan 2012 to 31-Mar\n        2012</p>\n    </div>""
+  },
+  ""identifier"" : [{
+    ""system"" : ""http://www.acme.org/practitioners"",
+    ""value"" : ""23""
+  }],
+  ""active"" : true,
+  ""name"" : [{
+    ""family"" : ""Careful"",
+    ""given"" : [""Adam""],
+    ""prefix"" : [""Dr""]
+  }],
+  ""address"" : [{
+    ""use"" : ""home"",
+    ""line"" : [""534 Erewhon St""],
+    ""city"" : ""PleasantVille"",
+    ""state"" : ""Vic"",
+    ""postalCode"" : ""3999""
+  }],
+  ""qualification"" : [{
+    ""identifier"" : [{
+      ""system"" : ""http://example.org/UniversityIdentifier"",
+      ""value"" : ""12345""
+    }],
+    ""code"" : {
+      ""coding"" : [{
+        ""system"" : ""http://terminology.hl7.org/CodeSystem/v2-0360/2.7"",
+        ""code"" : ""BS"",
+        ""display"" : ""Bachelor of Science""
+      }],
+      ""text"" : ""Bachelor of Science""
+    },
+    ""period"" : {
+      ""start"" : ""1995""
+    },
+    ""issuer"" : {
+      ""display"" : ""Example University""
+    }
+  }]
+}]"
+,Practitioner_HL7,Practitioner covers all individuals who are engaged in the healthcare process and healthcare-related services as part of their formal responsibilities and this Resource is used for attribution of activities and responsibilities to these individuals. ,"[""physicians"","" dentists"", ""pharmacists"", ""physician assistants"", ""nurses"", ""scribes""]",JSON_FHIR,v5.0.0,Practitioner,"[""scenario"":""referring practitioner nurse"",""scenario"":""nurse credentials""]","[{
+  ""resourceType"" : ""Practitioner"",
+  ""id"" : ""f204"",
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\""><p><b>Generated Narrative: Practitioner</b><a name=\""f204\""> </a></p><div style=\""display: inline-block; background-color: #d9e0e7; padding: 6px; margin: 4px; border: 1px solid #8da1b4; border-radius: 5px; line-height: 60%\""><p style=\""margin-bottom: 0px\"">Resource Practitioner &quot;f204&quot; </p></div><p><b>identifier</b>: <span title=\"" Practitioner's personal demographics \"">UZI-nummer:\u00a012345678904\u00a0(use:\u00a0OFFICIAL)</span></p><p><b>name</b>: Carla Espinosa</p><p><b>telecom</b>: <a href=\""tel:+31715262169\"">+31715262169</a></p><p><b>gender</b>: female</p><p><b>birthDate</b>: 1967-11-05</p><p><b>address</b>: Walvisbaai 3 Den helder 2333ZA NLD (WORK)</p></div>""
+  },
+  ""identifier"" : [{
+    ""use"" : ""official"",
+    ""type"" : {
+      ""text"" : ""UZI-nummer""
+    },
+    ""system"" : ""urn:oid:2.16.528.1.1007.3.1"",
+    ""value"" : ""12345678904""
+  }],
+  ""name"" : [{
+    ""use"" : ""usual"",
+    ""text"" : ""Carla Espinosa""
+  }],
+  ""telecom"" : [{
+    ""system"" : ""phone"",
+    ""value"" : ""+31715262169"",
+    ""use"" : ""work""
+  }],
+  ""gender"" : ""female"",
+  ""birthDate"" : ""1967-11-05"",
+  ""address"" : [{
+    ""use"" : ""work"",
+    ""line"" : [""Walvisbaai 3""],
+    ""city"" : ""Den helder"",
+    ""postalCode"" : ""2333ZA"",
+    ""country"" : ""NLD""
+  }]
+}]"
+,Practitioner_HL7,Practitioner covers all individuals who are engaged in the healthcare process and healthcare-related services as part of their formal responsibilities and this Resource is used for attribution of activities and responsibilities to these individuals. ,"[""physicians"","" dentists"", ""pharmacists"", ""physician assistants"", ""nurses"", ""scribes""]",JSON_FHIR,v5.0.0,Practitioner,"[""scenario"":""pharmacist"",""scenario"":""pharmacist credentials""]","[{
+  ""resourceType"" : ""Practitioner"",
+  ""id"" : ""f006"",
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\""><p><b>Generated Narrative: Practitioner</b><a name=\""f006\""> </a></p><div style=\""display: inline-block; background-color: #d9e0e7; padding: 6px; margin: 4px; border: 1px solid #8da1b4; border-radius: 5px; line-height: 60%\""><p style=\""margin-bottom: 0px\"">Resource Practitioner &quot;f006&quot; </p></div><p><b>identifier</b>: id:\u00a0937223645\u00a0(use:\u00a0OFFICIAL), id:\u00a0134IDY41W988\u00a0(use:\u00a0USUAL)</p><p><b>name</b>: Rob van den Berk (OFFICIAL)</p><p><b>telecom</b>: ph: 0205569288(WORK), <a href=\""mailto:R.A.vandenberk@bmc.nl\"">R.A.vandenberk@bmc.nl</a>, fax: 0205664987(WORK)</p><p><b>gender</b>: male</p><p><b>birthDate</b>: 1975-12-07</p><p><b>address</b>: Galapagosweg 91 Den Burg 9105 PZ NLD (WORK)</p></div>""
+  },
+  ""identifier"" : [{
+    ""use"" : ""official"",
+    ""system"" : ""urn:oid:2.16.528.1.1007.3.1"",
+    ""value"" : ""937223645""
+  },
+  {
+    ""use"" : ""usual"",
+    ""system"" : ""urn:oid:2.16.840.1.113883.2.4.6.3"",
+    ""value"" : ""134IDY41W988""
+  }],
+  ""name"" : [{
+    ""use"" : ""official"",
+    ""family"" : ""van den Berk"",
+    ""given"" : [""Rob""],
+    ""suffix"" : [""MD""]
+  }],
+  ""telecom"" : [{
+    ""system"" : ""phone"",
+    ""value"" : ""0205569288"",
+    ""use"" : ""work""
+  },
+  {
+    ""system"" : ""email"",
+    ""value"" : ""R.A.vandenberk@bmc.nl"",
+    ""use"" : ""work""
+  },
+  {
+    ""system"" : ""fax"",
+    ""value"" : ""0205664987"",
+    ""use"" : ""work""
+  }],
+  ""gender"" : ""male"",
+  ""birthDate"" : ""1975-12-07"",
+  ""address"" : [{
+    ""use"" : ""work"",
+    ""line"" : [""Galapagosweg 91""],
+    ""city"" : ""Den Burg"",
+    ""postalCode"" : ""9105 PZ"",
+    ""country"" : ""NLD""
+  }]
+}]"
+,Organzation_HL7,"A formally or informally recognized grouping of people or organizations formed for the purpose of achieving some form of collective action. Includes companies, institutions, corporations, departments, community groups, healthcare practice groups, payer/insurer, etc.","[""companies"","" groups"", ""institutions""]",JSON_FHIR,v5.0.0,Organization,"[""scenario"":""a clinic organization""]","[{
+  ""resourceType"" : ""Organization"",
+  ""id"" : ""2.16.840.1.113883.19.5"",
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\"">\n      \n      <p>Good Health Clinic</p>\n    \n    </div>""
+  },
+  ""identifier"" : [{
+    ""system"" : ""urn:ietf:rfc:3986"",
+    ""value"" : ""urn:oid:2.16.840.1.113883.19.5""
+  }],
+  ""name"" : ""Good Health Clinic""
+}]"
+,Encounter_HL7,"An interaction between a patient and healthcare provider(s) for the purpose of providing healthcare service(s) or assessing the health status of a patient. Encounter is primarily used to record information about the actual activities that occurred, where Appointment is used to record planned activities.","[""activities that occurred"","" admission"", ""discharge"", ""ambulatory"", ""emergency""]",JSON_FHIR,v5.0.0,Encounter,"[""scenario"":""inpatient encounter""]","[{
+  ""resourceType"" : ""Encounter"",
+  ""id"" : ""example"",
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\"">Encounter with patient @example</div>""
+  },
+  ""status"" : ""in-progress"",
+  ""class"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-ActCode"",
+      ""code"" : ""IMP"",
+      ""display"" : ""inpatient encounter""
+    }]
+  }],
+  ""subject"" : {
+    ""reference"" : ""Patient/example""
+  },
+  ""subjectStatus"" : {
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/encounter-subject-status"",
+      ""code"" : ""receiving-care""
+    }]
+  },
+  ""careTeam"" : [{
+    ""reference"" : ""Encounter/example""
+  }]
+}]"
+,Encounter_HL7,"An interaction between a patient and healthcare provider(s) for the purpose of providing healthcare service(s) or assessing the health status of a patient. Encounter is primarily used to record information about the actual activities that occurred, where Appointment is used to record planned activities.","[""activities that occurred"","" admission"", ""discharge"", ""ambulatory"", ""emergency""]",JSON_FHIR,v5.0.0,Encounter,"[""scenario"":""virtual encounter""]","[{
+  ""resourceType"" : ""Encounter"",
+  ""id"" : ""home"",
+  ""text"" : {
+    ""status"" : ""generated"",
+    ""div"" : ""<div xmlns=\""http://www.w3.org/1999/xhtml\"">Encounter with patient @example who is at home</div>""
+  },
+  ""contained"" : [{
+    ""resourceType"" : ""Location"",
+    ""id"" : ""home"",
+    ""description"" : ""Client's home"",
+    ""mode"" : ""kind""
+  }],
+  ""status"" : ""completed"",
+  ""class"" : [{
+    ""coding"" : [{
+      ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-ActCode"",
+      ""code"" : ""HH"",
+      ""display"" : ""home health""
+    }]
+  }],
+  ""subject"" : {
+    ""reference"" : ""Patient/example""
+  },
+  ""participant"" : [{
+    ""type"" : [{
+      ""coding"" : [{
+        ""system"" : ""http://terminology.hl7.org/CodeSystem/v3-ParticipationType"",
+        ""code"" : ""PPRF""
+      }]
+    }],
+    ""period"" : {
+      ""start"" : ""2015-01-17T16:00:00+10:00"",
+      ""end"" : ""2015-01-17T16:30:00+10:00""
+    },
+    ""actor"" : {
+      ""reference"" : ""Practitioner/example"",
+      ""display"" : ""Dr Adam Careful""
+    }
+  },
+  {
+    ""actor"" : {
+      ""reference"" : ""Patient/example""
+    }
+  }],
+  ""actualPeriod"" : {
+    ""start"" : ""2015-01-17T16:00:00+10:00"",
+    ""end"" : ""2015-01-17T16:30:00+10:00""
+  },
+  ""location"" : [{
+    ""location"" : {
+      ""reference"" : ""#home"",
+      ""display"" : ""Client's home""
+    },
+    ""status"" : ""completed"",
+    ""period"" : {
+      ""start"" : ""2015-01-17T16:00:00+10:00"",
+      ""end"" : ""2015-01-17T16:30:00+10:00""
+    }
+  }]
+}]"
