@@ -21,7 +21,7 @@ torchvision==0.22.1
 transformers==4.52.4
 sentence-transformers==4.1.0
 huggingface-hub==0.33.0
-# Optional (for later)
+
 redis==5.0.1
 celery==5.3.4
 

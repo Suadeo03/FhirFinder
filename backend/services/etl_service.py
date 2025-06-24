@@ -90,26 +90,29 @@ class ETLService:
         return transformed
     
     def _transform_single_profile(self, row: Dict, row_index: int) -> Optional[Dict]:
-        """Transform a single row into profile format - UPDATED VERSION"""
-        # Handle different column name formats
-        profile = {}
+        '''
+        Current format:
+            "id": "generated_id",
+            "name": "Profile Name" # usually name of the profile or resource type by IG,
+            "description": "Profile description",
+            "keywords": ["keyword1", "keyword2"],
+            "category": "type of format", #JSON_FHIR
+            "version": "version of resource",
+            "resource_type": "Resource Type", ## e.g. "Patient", "Observation"/ ADT
+            "use_contexts": [{"scenario": "Use Case", "keywords": ["context1", "context2"]}],
+            "fhir_resource": {"resourceType": "StructureDefinition", ...}
         
-        # ID field (required)
-        profile['id'] = self._extract_field(row, ['id', 'profile_id', 'ID', 'Profile ID', 'Code'])
+        '''
+        profile = {}
+        profile['id'] = self._extract_field(row, ['id'])
         if not profile['id']:
             profile['id'] = f"generated_{uuid.uuid4().hex[:8]}_{row_index}"
-        
-        # Name field (required)
-        profile['name'] = self._extract_field(row, ['name', 'Name', 'title', 'Title', 'Profile Name', 'profile_name'])
+        profile['name'] = self._extract_field(row, ['name'])
         if not profile['name']:
             raise ValueError(f"Missing required 'name' field in row {row_index}")
-        
-        # Description field
         profile['description'] = self._extract_field(row, [
-            'description', 'Description', 'desc', 'summary', 'Summary', 'Definition'
-        ]) or ""
-        
-        # Keywords field
+            'description']) or ""
+
         keywords_raw = self._extract_field(row, [
             'keywords', 'Keywords', 'tags', 'Tags', 'terms', 'Terms'
         ])

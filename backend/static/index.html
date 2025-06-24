@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UMLS Code Loader Test</title>
+    <title>HL7 Navigator</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -78,9 +78,8 @@
         }
         
         .success {
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
+  
+            border: 1px solid #000000;
         }
         
         .error {
@@ -237,7 +236,7 @@
                         mode: 'cors',
                         body: JSON.stringify({
                             query: `${query}`,
-                            limit: 2
+                            limit: 1
                         })
                     });
 
@@ -274,14 +273,25 @@
 
             try {
                 btn.disabled = true;
-                showResult('<div class="loading">🔄 Looking up...</div>');
+                showResult('<div class="loading">Looking up...</div>');
                 
                 const result = await newQuery.getQuery(text);
-         
-                  if (result && (result.results || result.data)) {
+
+                function hasResults(result) {
+                    if (!result) { return false;
+                    }
+
+                    if ((result.results && result.results.length > 0) || (result.data && result.data.length > 0)) {
+                        return true;
+                    } 
+                    return false;
+                }
+
+                if (hasResults(result)) {
                     showResult(displayCodeResult(result));
+
                 } else {
-                    showResult(`<div class="error">❌ ${result.message || 'Unknown error'}</div>`);
+                    showResult(`<div class="error">❌ ${result.message || 'No entries found'}</div>`);
                 }
             } catch (error) {
                 console.error('Frontend error:', error);
@@ -291,7 +301,7 @@
             }
         }
 
-        // Placeholder functions (you'll need to implement these)
+        // Placeholder functions 
         function showResult(html) {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = html;
@@ -299,7 +309,18 @@
         }
 
         function displayCodeResult(result) {
-            return `<div class="success">Query successful: ${JSON.stringify(result)}</div>`;
+            return `<div class="success">
+            <h2>Best match : ${JSON.stringify(result.results[0].resource_type)}</h2><br/>
+            ${JSON.stringify(result.results[0].fhir_resource[0].text.div)}<br/>
+            <details>
+            <summary>Description</summary>
+            ${JSON.stringify(result.results[0].description)}
+            </details>
+            <details>
+            <summary>Match Metrics [Development ONLY View]</summary>
+            ${JSON.stringify(result.results[0].match_reasons)}
+            </details>
+            </div>`;
         }
 
     
@@ -309,6 +330,9 @@
             resultDiv.style.display = 'none';
             resultDiv.innerHTML = '';
         }
+
+
+        
 
         function loadCode() {
             showResult('<div class="loading">🔄 Loading code...</div>');

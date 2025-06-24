@@ -77,7 +77,7 @@ class HybridCache:
         self.redis.setex(f"sem_results:{sem_hash}", 3600, json.dumps(results))
 
 # review
-class HybridCache:
+class SearchCacheService:
     def __init__(self, redis_client, database):
         self.cache = redis_client
         self.db = database

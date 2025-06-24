@@ -8,27 +8,21 @@ import numpy as np
 from models.database.models import Profile
 from config.database import get_db
 
-class DatabaseSearchService:
-    """Search service that uses database-stored profiles"""
-    
+class DatabaseSearchService:   
     def __init__(self):
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
-    
+   
     def search(self, query: str, limit: int = 5, db: Session = None) -> List[Dict]:
-        """Search active profiles in database"""
+
         if not db:
             # This should be passed from the endpoint
             raise ValueError("Database session required")
         
         # Get active profiles
         active_profiles = db.query(Profile).filter(Profile.is_active == True).all()
-        
         if not active_profiles:
-            return []
-        
-        # Encode query
+            return [] 
         query_embedding = self.model.encode([query])[0]
-        
         results = []
         
         for profile in active_profiles:
@@ -76,11 +70,9 @@ class DatabaseSearchService:
     def _calculate_profile_similarity(self, query_embedding: np.ndarray, profile: Profile) -> float:
         """Calculate similarity with main profile content"""
         if profile.embedding_vector:
-            # Use pre-computed embedding
             profile_embedding = np.array(profile.embedding_vector)
             return cosine_similarity([query_embedding], [profile_embedding])[0][0]
         else:
-            # Fallback: compute embedding on the fly
             profile_text = f"{profile.name} {profile.description} {' '.join(profile.keywords or [])} {profile.category or ''} {profile.resource_type or ''} {profile.fhir_resource or ''} " 
             profile_embedding = self.model.encode([profile_text])[0]
             return cosine_similarity([query_embedding], [profile_embedding])[0][0]
