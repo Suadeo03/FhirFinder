@@ -4,8 +4,8 @@ from sqlalchemy.orm import sessionmaker
 from models.database.models import Base
 import os
 
-# Database URL - start with SQLite for simplicity, can upgrade to PostgreSQL later
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fhir_profiles.db")
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://fhir_user:admin@localhost:5432/fhir_registry")
 
 # Create engine
 engine = create_engine(

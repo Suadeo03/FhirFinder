@@ -1,8 +1,10 @@
 import hashlib
 import json
-import redis
+from config import get_redis_client
 import numpy as np
+import re
 import logging
+import time
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from typing import Optional, Dict, Any
@@ -10,8 +12,12 @@ from typing import Optional, Dict, Any
 
 
 class HybridCache:
-    def __init__(self, redis_client):
-        self.redis = redis_client
+    def __init__(self, get_redis_client=get_redis_client):
+        self.redis = get_redis_client()
+        if not self.redis:
+            raise ValueError("Redis client not initialized")
+        self.redis.ping()
+        logging.info("Connected to Redis cache successfully")
         self.embeddings_model = SentenceTransformer('all-MiniLM-L6-v2')
         self.semantic_threshold = 0.9
     

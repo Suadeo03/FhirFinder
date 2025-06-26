@@ -12,10 +12,12 @@ from api.v1.endpoints.datasets import router as datasets_router
 
 # Import database setup
 from config.database import init_database, get_db
+from config.redis import get_redis_client
 from services.database_search_service import DatabaseSearchService
 
 # Initialize database on startup
 init_database()
+redis_client = get_redis_client()
 
 app = FastAPI(
     title="FHIR Profile Recommender",
@@ -45,14 +47,13 @@ async def root():
     return {
         "message": "FHIR Profile Recommender API v2.0",
         "features": [
-            "Database-powered profile search",
+            "AI-powered profile search",
             "Multi-format dataset upload (CSV, JSON, Excel)",
             "ETL pipeline for data processing",
-            "Dataset versioning and management"
         ]
     }
 
-@app.get("/health")
+@app.get("/health/db")
 async def health(db: Session = Depends(get_db)):
     """Health check with database connectivity and search stats"""
     try:
@@ -70,6 +71,25 @@ async def health(db: Session = Depends(get_db)):
             "database": "error",
             "error": str(e)
         }
+@app.get("/health/redis")
+async def health(redis_client=Depends(get_redis_client)):
+    """Health check with database connectivity and search stats"""
+    try:
+        redis_client.ping()  
+        
+        return {
+            "status": "healthy",
+            "database": "connected",
+
+        }
+    except Exception as e:
+        return {
+            "status": "degraded",
+            "database": "error",
+            "error": str(e)
+        }
+
+
 
 if __name__ == "__main__":
     import uvicorn

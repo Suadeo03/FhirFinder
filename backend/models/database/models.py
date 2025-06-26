@@ -24,7 +24,7 @@ class Dataset(Base):
     record_count = Column(Integer, default=0)
     error_message = Column(Text)
     file_size = Column(Integer)  # in bytes
-    file_path = Column(String(500))  # where the file is stored
+    file_path = Column(String(500))  
     
     # Relationship to profiles
     profiles = relationship("Profile", back_populates="dataset", cascade="all, delete-orphan")
