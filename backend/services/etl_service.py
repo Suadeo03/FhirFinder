@@ -10,7 +10,7 @@ import re
 from datetime import datetime
 
 class ETLService:
-    """Extract, Transform, Load service for profile data"""
+
     
     def __init__(self):
         self.model = SentenceTransformer('all-MiniLM-L6-v2')

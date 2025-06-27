@@ -13,9 +13,9 @@ class Dataset(Base):
     __tablename__ = "datasets"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False) #Name of Organization OID
     filename = Column(String(255), nullable=False)
-    description = Column(Text) #Description of the dataset
+    description = Column(Text) #Description of the dataset, verion, etc.
     status = Column(String(50), nullable=False, default="uploaded")  # uploaded, processing, ready, active, inactive, failed
     upload_date = Column(DateTime, default=datetime.utcnow)
     processed_date = Column(DateTime)
@@ -23,6 +23,8 @@ class Dataset(Base):
     deactivated_date = Column(DateTime)
     record_count = Column(Integer, default=0)
     error_message = Column(Text)
+    download_count = Column(Integer, default=0) #number of times dataset has been downloaded
+    last_downloaded = Column(DateTime)
     file_size = Column(Integer)  # in bytes
     file_path = Column(String(500))  
     

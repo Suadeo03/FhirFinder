@@ -1,5 +1,6 @@
 # backend/api/v1/endpoints/datasets.py
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -110,6 +111,43 @@ async def upload_dataset(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+    
+
+@router.get("/datasets/{dataset_id}/download")
+async def download_dataset(
+    dataset_id: str,
+    db: Session = Depends(get_db)
+):
+    """Download a dataset file"""
+    try:
+        # Get dataset from database
+        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+            
+        if not dataset.file_path:
+            raise HTTPException(status_code=404, detail="No file associated with this dataset")
+            
+        # Check if file exists on disk
+        if not os.path.exists(dataset.file_path):
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        
+        dataset.download_count = (dataset.download_count or 0) + 1
+        dataset.last_downloaded = datetime.utcnow()
+        db.commit()
+            
+        # Return file response
+        return FileResponse(
+            path=dataset.file_path,
+            filename=dataset.filename,
+            media_type='application/octet-stream'
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
 @router.post("/datasets/{dataset_id}/process", response_model=ProcessResponse)
 async def process_dataset(dataset_id: str, db: Session = Depends(get_db)):
