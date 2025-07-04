@@ -39,8 +39,13 @@ class Profile(Base):
     __tablename__ = "profiles"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4())) 
+    oid = Column(String(75))
     name = Column(String(500), nullable=False)
     description = Column(Text)
+    must_have = Column(JSON) #["must support element"...]
+    must_support = Column(JSON) #["should element1"]
+    invariants = Column(JSON) #[{"invariant1":"text"}]
+    resource_url = Column(JSON) #[{"invariant1":"text"}]
     keywords = Column(JSON)  # ["keyword1", "keyword2", ...]
     category = Column(String(100))
     version = Column(String(50))  # e.g. "1.0.0"
@@ -58,7 +63,7 @@ class Profile(Base):
     
     # Relationship to dataset
     dataset = relationship("Dataset", back_populates="profiles")
-    
+
     def __repr__(self):
         return f"<Profile(id='{self.id}', name='{self.name[:50]}...', active={self.is_active})>"
 
@@ -78,5 +83,26 @@ class ProcessingJob(Base):
     # Job-specific data
     job_data = Column(JSON)  # Store any job-specific parameters
     
+    def __repr__(self):
+        return f"<ProcessingJob(id='{self.id}', type='{self.job_type}', status='{self.status}')>"
+
+class QueryPerformance(Base):
+    """Track zero-shot query performance"""
+    __tablename__ = "query_performance"
+
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    profile_id = Column(String, nullable=False)
+    query_text = Column(String(500), nullable=False)
+    query_date = Column(DateTime, default=datetime.utcnow)
+    profile_name = Column(String(500), nullable=False)  # Name of the profile
+    profile_oid = Column(String(75), nullable=False)  
+    profile_score = Column(Float, nullable=False)  # Similarity score with profile
+    context_score = Column(Float, nullable=False)  # Similarity score with context
+    combined_score = Column(Float, nullable=False)  # Combined score
+    match_reasons = Column(Text)  # Reasons for the match, e.g. "keyword match", "context match"
+    keywords = Column(JSON)  # Keywords used in the query
+
+
     def __repr__(self):
         return f"<ProcessingJob(id='{self.id}', type='{self.job_type}', status='{self.status}')>"

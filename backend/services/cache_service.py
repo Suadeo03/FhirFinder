@@ -21,7 +21,7 @@ class HybridCache:
         self.embeddings_model = SentenceTransformer('all-MiniLM-L6-v2')
         self.semantic_threshold = 0.9
     
-    def search_with_cache(self, query, vector_search_func):
+    def search_with_cache(self, query):
         # Level 1: Exact cache (fastest)
         exact_key = f"exact:{hashlib.md5(query.encode()).hexdigest()}"
         cached = self.redis.get(exact_key)
@@ -40,12 +40,7 @@ class HybridCache:
         if semantic_result:
             return semantic_result, "semantic_hit"
         
-        # Level 4: Vector search (slowest)
-        results = vector_search_func(query)
-        
-        # Cache at all levels
-        self.cache_results(exact_key, norm_key, query, results)
-        return results, "vector_search"
+        return None
     
     def normalize_query(self, query):
         """Normalized preprocessing"""

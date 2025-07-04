@@ -3,283 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HL7 Navigator</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        h1 {
-            color: #333;
-            margin-bottom: 30px;
-        }
-
-        /* Tab Styles */
-        .tab-container {
-            margin-bottom: 20px;
-        }
-
-        .tab-nav {
-            display: flex;
-            border-bottom: 2px solid #e9ecef;
-            margin-bottom: 20px;
-        }
-
-        .tab-button {
-            background: none;
-            border: none;
-            padding: 12px 20px;
-            cursor: pointer;
-            font-size: 16px;
-            color: #666;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s ease;
-            margin-right: 10px;
-        }
-
-        .tab-button:hover {
-            color: #4CAF50;
-            background-color: #f8f9fa;
-        }
-
-        .tab-button.active {
-            color: #4CAF50;
-            border-bottom-color: #4CAF50;
-            background-color: #f8f9fa;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .dataset-info {
-            background: #e8f5e9;
-            padding: 10px 15px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            font-size: 14px;
-            color: #2e7d32;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-            color: #555;
-        }
-        
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #4CAF50;
-        }
-        
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-right: 10px;
-        }
-        
-        button:hover {
-            background-color: #45a049;
-        }
-        
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .result {
-            margin-top: 20px;
-            padding: 20px;
-            border-radius: 6px;
-            min-height: 50px;
-        }
-        
-        .success {
-            border: 1px solid #000000;
-        }
-        
-        .error {
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-        }
-        
-        .loading {
-            background-color: #d1ecf1;
-            border: 1px solid #bee5eb;
-            color: #0c5460;
-        }
-        
-        .code-result {
-            background: #f8f9fa;
-            border-left: 4px solid #4CAF50;
-            padding: 15px;
-            margin-top: 10px;
-        }
-        
-        .code-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 15px;
-        }
-        
-        .code-badge {
-            background: #4CAF50;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 14px;
-        }
-        
-        .definition {
-            margin-bottom: 15px;
-            padding: 10px;
-            background: white;
-            border-radius: 4px;
-            border: 1px solid #e9ecef;
-        }
-        
-        .metadata {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .meta-item {
-            background: white;
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #e9ecef;
-            font-size: 14px;
-        }
-        
-        .semantic-types ul {
-            margin: 5px 0;
-            padding-left: 20px;
-        }
-        
-        details {
-            margin-top: 15px;
-        }
-        
-        summary {
-            cursor: pointer;
-            font-weight: bold;
-            padding: 10px;
-            background: #e9ecef;
-            border-radius: 4px;
-        }
-        
-        pre {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 4px;
-            overflow-x: auto;
-            font-size: 12px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
-        .test-buttons {
-            margin-bottom: 20px;
-        }
-        
-        .test-buttons button {
-            background-color: #17a2b8;
-            margin-bottom: 10px;
-        }
-        
-        .test-buttons button:hover {
-            background-color: #138496;
-        }
-        
-        #connectionStatus {
-            margin-bottom: 20px;
-        }
-    </style>
+    <title>Suadeo</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>HL7 Navigator</h1>
+        <h1>Suadeo</h1>
         
         <div id="connectionStatus"></div>
         
         <div class="tab-container">
             <!-- Tab Navigation -->
             <div class="tab-nav">
-                <button class="tab-button active" onclick="switchTab('fhir')">FHIR Resources</button>
-                <button class="tab-button" onclick="switchTab('terminology')">Terminology</button>
-                <button class="tab-button" onclick="switchTab('patients')">Patient Data</button>
-                <button class="tab-button" onclick="switchTab('clinical')">Clinical Notes</button>
+                <button class="tab-button active" onclick="switchTab('resources')">FHIR Resources</button>
+                <button class="tab-button" onclick="switchTab('search')">FHIR Search</button>
+                <button class="tab-button" onclick="switchTab('form')">Form</button>
+                <button class="tab-button" onclick="switchTab('mapping')">V2 to FHIR</button>
             </div>
 
             <!-- FHIR Resources Tab -->
-            <div id="fhir-tab" class="tab-content active">
+            <div id="resources-tab" class="tab-content active">
                 <div class="dataset-info">
-                    🔍 Search FHIR resources, profiles, and implementation guides
                 </div>
-                <input type="text" id="fhirQuery" placeholder="Search FHIR resources (e.g., Patient, Observation, Condition)...">
+                <input type="text" id="resourceQuery" placeholder="Enter a business case...">
             </div>
 
-            <!-- Terminology Tab -->
-            <div id="terminology-tab" class="tab-content">
+            <!-- Search Tab -->
+            <div id="search-tab" class="tab-content">
                 <div class="dataset-info">
-                    📚 Search medical terminologies (SNOMED CT, LOINC, ICD-10, etc.)
                 </div>
-                <input type="text" id="terminologyQuery" placeholder="Search medical codes and terms (e.g., diabetes, blood pressure)...">
+                <input type="text" id="searchQuery" placeholder="Lookup FHIR search parameters...">
             </div>
 
-            <!-- Patient Data Tab -->
-            <div id="patients-tab" class="tab-content">
+            <!-- Form Data Tab -->
+            <div id="form-tab" class="tab-content">
                 <div class="dataset-info">
-                    👤 Search patient records and demographic data
                 </div>
-                <input type="text" id="patientsQuery" placeholder="Search patient data (e.g., patient ID, demographics)...">
+                <input type="text" id="formQuery" placeholder="Enter an assessment question...">
             </div>
 
-            <!-- Clinical Notes Tab -->
-            <div id="clinical-tab" class="tab-content">
-                <div class="dataset-info">
-                    📝 Search clinical documentation and notes
-                </div>
-                <input type="text" id="clinicalQuery" placeholder="Search clinical notes and documentation...">
+            <!-- Mapping Tab -->
+            <div id="mapping-tab" class="tab-content">
+                <div class="dataset-info"></div>
+                <input type="text" id="mappingQuery" placeholder="FHIR to V2 mapping examples...">
             </div>
         </div>
         
@@ -292,199 +58,6 @@
         <div id="result" class="result" style="display: none;"></div>
     </div>
 
-    <script>
-        // Tab switching functionality
-        let currentTab = 'fhir';
-
-        function switchTab(tabName) {
-            // Hide all tab contents
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            // Remove active class from all tab buttons
-            document.querySelectorAll('.tab-button').forEach(button => {
-                button.classList.remove('active');
-            });
-            
-            // Show selected tab content
-            document.getElementById(tabName + '-tab').classList.add('active');
-            
-            // Add active class to clicked tab button
-            event.target.classList.add('active');
-            
-            // Update current tab
-            currentTab = tabName;
-            
-            // Clear previous results when switching tabs
-            clearResult();
-        }
-
-        // Get the current query value based on active tab
-        function getCurrentQuery() {
-            switch(currentTab) {
-                case 'fhir':
-                    return document.getElementById('fhirQuery').value.trim();
-                case 'terminology':
-                    return document.getElementById('terminologyQuery').value.trim();
-                case 'patients':
-                    return document.getElementById('patientsQuery').value.trim();
-                case 'clinical':
-                    return document.getElementById('clinicalQuery').value.trim();
-                default:
-                    return '';
-            }
-        }
-
-        class FhirTextQuery {
-            constructor(baseUrl = 'http://localhost:8000') {
-                this.baseUrl = baseUrl;
-            }
-
-            async getQuery(query, dataset = 'fhir') {
-                try {
-                    // You can modify the endpoint based on the dataset
-                    let endpoint = '/api/v1/search/';
-                    switch(dataset) {
-                        case 'terminology':
-                            endpoint = '/api/v1/terminology/search/';
-                            break;
-                        case 'patients':
-                            endpoint = '/api/v1/patients/search/';
-                            break;
-                        case 'clinical':
-                            endpoint = '/api/v1/clinical/search/';
-                            break;
-                    }
-
-                    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                        },
-                        mode: 'cors',
-                        body: JSON.stringify({
-                            query: `${query}`,
-                            limit: 1,
-                            dataset: dataset
-                        })
-                    });
-
-                    console.log(`Response status: ${response.status}`);
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error(`API Error: ${response.status} - ${errorText}`);
-                        throw new Error(`API Error: ${response.status} - ${errorText}`);
-                    }
-
-                    const data = await response.json();
-                    console.log('Successful response:', data);
-                    return data;
-
-                } catch (error) {
-                    console.error('Error loading code:', error);
-                    throw error;
-                }
-            }
-        }
-
-        let newQuery = new FhirTextQuery();
-
-        async function lookupBtn() {
-            const btn = document.getElementById('lookupBtn'); 
-            const text = getCurrentQuery();
-
-            if (!text) {
-                showResult('<div class="error">Please enter something to search</div>');
-                return;
-            }
-
-            try {
-                btn.disabled = true;
-                showResult(`<div class="loading">Searching ${currentTab} dataset...</div>`);
-                
-                const result = await newQuery.getQuery(text, currentTab);
-
-                function hasResults(result) {
-                    if (!result) { return false; }
-                    if ((result.results && result.results.length > 0) || (result.data && result.data.length > 0)) {
-                        return true;
-                    } 
-                    return false;
-                }
-
-                if (hasResults(result)) {
-                    showResult(displayCodeResult(result, currentTab));
-                } else {
-                    showResult(`<div class="error">❌ No results found in ${currentTab} dataset</div>`);
-                }
-            } catch (error) {
-                console.error('Frontend error:', error);
-                showResult(`<div class="error">❌ Error searching ${currentTab}: ${error.message}</div>`);
-            } finally {
-                btn.disabled = false; 
-            }
-        }
-
-        function showResult(html) {
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = html;
-            resultDiv.style.display = 'block';
-        }
-
-        function displayCodeResult(result, dataset) {
-            return `<div class="success">
-            <h2>Best match from ${dataset.toUpperCase()} dataset: ${JSON.stringify(result.results[0].resource_type)}</h2><br/>
-            ${JSON.stringify(result.results[0].fhir_resource[0].text.div)}<br/>
-            <details>
-            <summary>Description</summary>
-            ${JSON.stringify(result.results[0].description)}
-            </details>
-            <details>
-            <summary>Match Metrics [Development ONLY View]</summary>
-            ${JSON.stringify(result.results[0].match_reasons)}
-            </details>
-            </div>`;
-        }
-
-        function clearResult() {
-            const resultDiv = document.getElementById('result');
-            resultDiv.style.display = 'none';
-            resultDiv.innerHTML = '';
-        }
-
-        function testRawUMLS() {
-            showResult('<div class="loading">🔄 Adding to use case...</div>');
-        }
-
-        function loadCode() {
-            showResult('<div class="loading">🔄 Loading code...</div>');
-        }
-
-        function getCode() {
-            showResult('<div class="loading">🔄 Getting code...</div>');
-        }
-
-        function testConnection() {
-            showResult('<div class="loading">🔄 Testing connection...</div>');
-        }
-
-        // Allow Enter key to perform lookup in any active input
-        document.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                const activeInput = document.querySelector('.tab-content.active input');
-                if (activeInput === document.activeElement) {
-                    lookupBtn();
-                }
-            }
-        });
-
-        // Test connection on page load
-        window.addEventListener('DOMContentLoaded', async () => {
-            setTimeout(testConnection, 500);
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>

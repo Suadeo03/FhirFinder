@@ -106,40 +106,44 @@ class ETLService:
         profile = {}
         profile['id'] = self._extract_field(row, ['id'])
         if not profile['id']:
-            profile['id'] = f"generated_{uuid.uuid4().hex[:8]}_{row_index}"
+            profile['id'] = f"HL7_{uuid.uuid4().hex[:8]}_{row_index}"
+
+        profile['oid'] = self._extract_field(row, ['oid']) or "oid"
+
         profile['name'] = self._extract_field(row, ['name'])
         if not profile['name']:
             raise ValueError(f"Missing required 'name' field in row {row_index}")
-        profile['description'] = self._extract_field(row, [
-            'description']) or ""
+        profile['description'] = self._extract_field(row, ['description']) or ""
 
-        keywords_raw = self._extract_field(row, [
-            'keywords', 'Keywords', 'tags', 'Tags', 'terms', 'Terms'
-        ])
+        keywords_raw = self._extract_field(row, ['keywords'])
         profile['keywords'] = self._parse_keywords(keywords_raw)
-        
-        # Category
-        profile['category'] = self._extract_field(row, [
-            'category', 'Category', 'type', 'Type', 'Class', 'class'
-        ]) or "general"
+        ##add must support, should support, invariants, oid
+        must_have_raw = self._extract_field(row, ['must_have'])
+        profile['must_have'] = self._parse_field_requirements(must_have_raw)
 
-        profile['version'] = self._extract_field(row, [
-            'version'
-        ]) or "version"
+        must_support_raw = self._extract_field(row, ['must_support'])
+        profile['must_support'] = self._parse_field_requirements(must_support_raw)
+        # Category
+        invariants_raw = self._extract_field(row, ['invariants'])
+        profile['invariants'] = self._parse_keywords(invariants_raw)
+        
+        profile['resource_url'] = self._extract_field(row, ['resource_url']) or "resource_url"
+
+        profile['category'] = self._extract_field(row, ['category']) or "category"
+
+        profile['version'] = self._extract_field(row, ['version']) or "version"
         
         # Resource type
-        profile['resource_type'] = self._extract_field(row, [
-            'resource_type', 'Resource Type', 'resourceType', 'resource', 'Resource'
-        ]) or "Unknown"
+        profile['resource_type'] = self._extract_field(row, ['resource_type']) or "Unknown"
         
         # Use contexts (optional advanced field)
         profile['use_contexts'] = self._parse_use_contexts(row)
         
-        # FHIR Resource handling - ENHANCED
-        fhir_resource_raw = self._extract_field(row, ['fhir_resource', 'fhir', 'resource', 'structure_definition'])
+        # FHIR Resource 
+        fhir_resource_raw = self._extract_field(row, ['fhir_resource'])
         profile['fhir_resource'] = self._parse_keywords(fhir_resource_raw)
         
-        # NEW: Extract FHIR resource fields for search
+        #Extract FHIR resource fields for search
         profile['fhir_searchable_text'] = self._extract_fhir_fields(fhir_resource_raw)
 
         return profile
@@ -189,11 +193,20 @@ class ETLService:
                 self._collect_fhir_field_names(item, field_names, max_depth, current_depth + 1)
     
     def _extract_field(self, row: Dict, possible_keys: List[str]) -> Optional[str]:
-        """Extract field value trying multiple possible column names"""
+        # Validate inputs
+        if not row or not isinstance(row, dict):
+            return None
+        if not possible_keys:
+            return None
+            
         for key in possible_keys:
-            if key in row and row[key] is not None:
-                value = str(row[key]).strip()
-                return value if value and value.lower() != 'nan' else None
+            try:
+                if key in row and row[key] is not None:
+                    value = str(row[key]).strip()
+                    if value and value.lower() not in ['nan', 'null', 'none', '']:
+                        return value
+            except (KeyError, AttributeError, TypeError) as e:
+                continue
         return None
     
     def _parse_keywords(self, keywords_raw: Any) -> List[str]:
@@ -240,7 +253,29 @@ class ETLService:
             "scenario": str(scenarios),
             "keywords": self._parse_keywords(scenarios)
         }]
-    
+        
+    def _parse_field_requirements(self, row: Dict) -> List[Dict]:
+
+        # Look for use context fields
+        scenarios = self._extract_field(row, ['1.', '2.','3.','4.','5.','6.','7.','8.','9.','10.'])
+        if not scenarios:
+            return []
+        
+        try:
+            # Try JSON format
+            if isinstance(scenarios, str) and scenarios.startswith('['):
+                return json.loads(scenarios)
+        except:
+            pass
+        
+        # Simple format - create basic use context
+        return [{
+            "number": str(scenarios),
+            "keywords": self._parse_keywords(scenarios)
+        }]
+
+
+
     def _extract_fhir_fields(self, fhir_resource_data: Any) -> str:
         """Extract field names/keys from FHIR resource structure for searchable text"""
         if not fhir_resource_data:
@@ -347,15 +382,21 @@ class ETLService:
                 # Create profile record
                 profile = Profile(
                     id=profile_data['id'],
+                    oid=profile_data.get('oid'),  
                     name=profile_data['name'],
                     description=profile_data['description'],
+                    must_have=profile_data.get('must_have'),  
+                    must_support=profile_data.get('must_support'),  
+                    invariants=profile_data.get('invariants'),  
+                    resource_url=profile_data.get('resource_url'),  
                     keywords=profile_data['keywords'],
                     category=profile_data['category'],
+                    version=profile_data.get('version'),  
                     resource_type=profile_data['resource_type'],
                     use_contexts=profile_data['use_contexts'],
                     fhir_resource=profile_data.get('fhir_resource'),
                     dataset_id=dataset_id,
-                    search_text=base_search_text,  # Now includes FHIR fields
+                    search_text=base_search_text, 
                     embedding_vector=embedding
                 )
                 
@@ -370,7 +411,7 @@ class ETLService:
                     existing.embedding_vector = embedding
                     existing.dataset_id = dataset_id
                 else:
-                    # Add new profile
+
                     db.add(profile)
                 
                 loaded_count += 1

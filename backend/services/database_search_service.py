@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-
+from services.performancelog import create_performance_log
 from models.database.models import Profile
 from config.database import get_db
+from config.redis import get_redis_client
 
 class DatabaseSearchService:   
     def __init__(self):
@@ -18,6 +19,12 @@ class DatabaseSearchService:
             # This should be passed from the endpoint
             raise ValueError("Database session required")
         
+        if not get_redis_client():
+            raise ValueError('Cannot connect to redis')
+        
+        # add pinecone check
+        
+
         # Get active profiles
         active_profiles = db.query(Profile).filter(Profile.is_active == True).all()
         if not active_profiles:
@@ -42,8 +49,13 @@ class DatabaseSearchService:
             if combined_score > 0.3:
                 result = {
                     "id": profile.id,
+                    "oid": profile.oid,
                     "name": profile.name,
                     "description": profile.description,
+                    "must_have": profile.must_have or [],
+                    "must_support": profile.must_support or [],
+                    "invariants": profile.invariants or [],
+                    "resource_url": profile.resource_url or [],
                     "keywords": profile.keywords or [],
                     "category": profile.category,
                     "resource_type": profile.resource_type,
@@ -62,7 +74,22 @@ class DatabaseSearchService:
                     )
                 }
                 results.append(result)
-        
+
+        if results:
+            for res in results:
+                create_performance_log(
+                    profile_id=res['id'],
+                    query_text=query,
+                    profile_name=res['name'],
+                    profile_oid=res['oid'],
+                    profile_score=res['profile_similarity'],
+                    context_score=res['context_similarity'],
+                    combined_score=res['confidence_score'],
+                    match_reasons=res['match_reasons'],
+                    keywords=res['keywords'],
+                    db=db
+                )    
+
         # Sort by combined score
         results.sort(key=lambda x: x['confidence_score'], reverse=True)
         return results[:limit]

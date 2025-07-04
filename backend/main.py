@@ -37,6 +37,7 @@ app.add_middleware(
 # Include routers
 app.include_router(search_router, prefix="/api/v1", tags=["search"])
 app.include_router(datasets_router, prefix="/api/v1", tags=["datasets"])
+app.include_router(datasets_router, prefix="/api/v1", tags=["performance"])
 
 static_dir = "static"
 if os.path.exists(static_dir):
