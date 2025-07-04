@@ -19,7 +19,7 @@ class SearchResponse(BaseModel):
     total_results: int
     search_stats: Optional[dict] = None
 
-@router.post("/paramters", response_model=SearchResponse)
+@router.post("/parameters", response_model=SearchResponse)
 async def search_profiles(request: SearchRequest, db: Session = Depends(get_db)):
 
     try:

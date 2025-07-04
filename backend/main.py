@@ -10,7 +10,7 @@ import os
 # Import routers
 from api.v1.endpoints.search import router as search_router
 from api.v1.endpoints.datasets import router as datasets_router
-
+from api.v1.endpoints.queryperformance import router as queryperformance_router
 # Import database setup
 from config.database import init_database, get_db
 from config.redis import get_redis_client
@@ -37,7 +37,7 @@ app.add_middleware(
 # Include routers
 app.include_router(search_router, prefix="/api/v1", tags=["search"])
 app.include_router(datasets_router, prefix="/api/v1", tags=["datasets"])
-app.include_router(datasets_router, prefix="/api/v1", tags=["performance"])
+app.include_router(queryperformance_router, prefix="/api/v1", tags=["performance"])
 
 static_dir = "static"
 if os.path.exists(static_dir):
