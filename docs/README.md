@@ -11,3 +11,15 @@ curl -X 'POST' \
   -F 'file=@sample.csv;type=text/csv' \
   -F 'name=test_profile' \
   -F 'description=test set'
+
+  # Start
+docker-compose up -d
+
+# Stop
+docker-compose down
+
+# View logs
+docker-compose logs postgres
+
+# Connect via psql
+docker exec -it fhir_postgres psql -U fhir_user -d fhir_registry
