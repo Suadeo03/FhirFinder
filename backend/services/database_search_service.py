@@ -4,9 +4,8 @@ from sqlalchemy.orm import Session
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from services.performancelog import create_performance_log
+from services.performance_log import create_performance_log
 from models.database.models import Profile
-from config.database import get_db
 from config.redis import get_redis_client
 
 class DatabaseSearchService:   
@@ -19,8 +18,8 @@ class DatabaseSearchService:
             # This should be passed from the endpoint
             raise ValueError("Database session required")
         
-        if not get_redis_client():
-            raise ValueError('Cannot connect to redis')
+        #if not get_redis_client():
+        #    raise ValueError('Cannot connect to redis')
         
         # add pinecone check
         
@@ -123,11 +122,8 @@ class DatabaseSearchService:
     
     def _calculate_combined_score(self, profile_sim: float, context_sim: float, query: str, profile: Profile) -> float:
         """Calculate weighted combined score"""
-        # Weights
         profile_weight = 0.6
         context_weight = 0.4
-        
-        # Keyword boost
         keyword_boost = self._calculate_keyword_boost(query, profile)
         
         combined = (profile_sim * profile_weight + 

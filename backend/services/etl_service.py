@@ -94,6 +94,12 @@ class ETLService:
         Current format:
             "id": "generated_id",
             "name": "Profile Name" # usually name of the profile or resource type by IG,
+            "oid": "oid", #optional, if not present will be generated
+            "resource_url": "url to resource", #optional, if not present will be generated
+            "must_have": "1. field1, 2. field2", #optional, if not present will be empty
+            "must_support": "1. field1, 2. field2", #fields that must be supported by implementations
+            "invariants": "1. invariant1, 2. invariant2", #warings and errors that apply to implementation
+            "resource_url": "url to the full specification of the profile"
             "description": "Profile description",
             "keywords": ["keyword1", "keyword2"],
             "category": "type of format", #JSON_FHIR
@@ -108,7 +114,7 @@ class ETLService:
         if not profile['id']:
             profile['id'] = f"HL7_{uuid.uuid4().hex[:8]}_{row_index}"
 
-        profile['oid'] = self._extract_field(row, ['oid']) or "oid"
+        profile['oid'] = self._extract_field(row, ['oid']) or "No OID available"
 
         profile['name'] = self._extract_field(row, ['name'])
         if not profile['name']:
@@ -117,33 +123,29 @@ class ETLService:
 
         keywords_raw = self._extract_field(row, ['keywords'])
         profile['keywords'] = self._parse_keywords(keywords_raw)
-        ##add must support, should support, invariants, oid
+
         must_have_raw = self._extract_field(row, ['must_have'])
-        profile['must_have'] = self._parse_field_requirements(must_have_raw)
+        profile['must_have'] = self._parse_keywords(must_have_raw)
 
         must_support_raw = self._extract_field(row, ['must_support'])
-        profile['must_support'] = self._parse_field_requirements(must_support_raw)
-        # Category
+        profile['must_support'] = self._parse_keywords(must_support_raw) or "None available"
+
         invariants_raw = self._extract_field(row, ['invariants'])
-        profile['invariants'] = self._parse_keywords(invariants_raw)
+        profile['invariants'] = self._parse_keywords(invariants_raw) or "None available"
         
-        profile['resource_url'] = self._extract_field(row, ['resource_url']) or "resource_url"
+        profile['resource_url'] = self._extract_field(row, ['resource_url']) or "None available"
 
         profile['category'] = self._extract_field(row, ['category']) or "category"
 
         profile['version'] = self._extract_field(row, ['version']) or "version"
         
-        # Resource type
         profile['resource_type'] = self._extract_field(row, ['resource_type']) or "Unknown"
         
-        # Use contexts (optional advanced field)
         profile['use_contexts'] = self._parse_use_contexts(row)
         
-        # FHIR Resource 
         fhir_resource_raw = self._extract_field(row, ['fhir_resource'])
         profile['fhir_resource'] = self._parse_keywords(fhir_resource_raw)
-        
-        #Extract FHIR resource fields for search
+
         profile['fhir_searchable_text'] = self._extract_fhir_fields(fhir_resource_raw)
 
         return profile
@@ -189,11 +191,11 @@ class ETLService:
                     self._collect_fhir_field_names(value, field_names, max_depth, current_depth + 1)
         
         elif isinstance(data, list):
-            for item in data[:5]:  # Limit to avoid too much processing
+            for item in data[:5]:  
                 self._collect_fhir_field_names(item, field_names, max_depth, current_depth + 1)
     
     def _extract_field(self, row: Dict, possible_keys: List[str]) -> Optional[str]:
-        # Validate inputs
+
         if not row or not isinstance(row, dict):
             return None
         if not possible_keys:
@@ -218,37 +220,34 @@ class ETLService:
         if not keywords_str or keywords_str.lower() == 'nan':
             return []
         
-        # Try JSON format first
         try:
             if keywords_str.startswith('['):
                 return json.loads(keywords_str)
         except:
             pass
-        
-        # Split by common delimiters
+
         for delimiter in [',', ';', '|', '\n']:
             if delimiter in keywords_str:
                 keywords = [kw.strip() for kw in keywords_str.split(delimiter)]
                 return [kw for kw in keywords if kw]
         
-        # Single keyword
+
         return [keywords_str] if keywords_str else []
     
     def _parse_use_contexts(self, row: Dict) -> List[Dict]:
         """Parse use contexts if present"""
-        # Look for use context fields
+
         scenarios = self._extract_field(row, ['scenarios', 'use_cases', 'use_contexts'])
         if not scenarios:
             return []
         
         try:
-            # Try JSON format
+
             if isinstance(scenarios, str) and scenarios.startswith('['):
                 return json.loads(scenarios)
         except:
             pass
         
-        # Simple format - create basic use context
         return [{
             "scenario": str(scenarios),
             "keywords": self._parse_keywords(scenarios)
@@ -256,19 +255,16 @@ class ETLService:
         
     def _parse_field_requirements(self, row: Dict) -> List[Dict]:
 
-        # Look for use context fields
         scenarios = self._extract_field(row, ['1.', '2.','3.','4.','5.','6.','7.','8.','9.','10.'])
         if not scenarios:
             return []
         
         try:
-            # Try JSON format
             if isinstance(scenarios, str) and scenarios.startswith('['):
                 return json.loads(scenarios)
         except:
             pass
-        
-        # Simple format - create basic use context
+
         return [{
             "number": str(scenarios),
             "keywords": self._parse_keywords(scenarios)
@@ -281,16 +277,15 @@ class ETLService:
         if not fhir_resource_data:
             return ""
         
-        field_names = set()  # Use set to avoid duplicates
+        field_names = set()  
         
         try:
-            # If it's a string, try to parse as JSON
+
             if isinstance(fhir_resource_data, str):
                 fhir_data = json.loads(fhir_resource_data)
             elif isinstance(fhir_resource_data, dict):
                 fhir_data = fhir_resource_data
             elif isinstance(fhir_resource_data, list):
-                # Handle list of FHIR resources
                 all_field_names = set()
                 for resource in fhir_resource_data:
                     resource_fields = self._extract_fhir_fields(resource)
@@ -299,8 +294,7 @@ class ETLService:
                 return " ".join(sorted(all_field_names))
             else:
                 return ""
-            
-            # Extract field names recursively
+
             self._extract_fhir_keys_recursive(fhir_data, field_names)
             
             return " ".join(sorted(field_names))
@@ -316,15 +310,15 @@ class ETLService:
         
         if isinstance(data, dict):
             for key, value in data.items():
-                # Add all field names to make them searchable
+
                 field_names.add(key)
                 
-                # Continue recursively for nested structures
+
                 if isinstance(value, (dict, list)):
                     self._extract_fhir_keys_recursive(value, field_names, max_depth, current_depth + 1)
         
         elif isinstance(data, list):
-            for item in data[:10]:  # Limit to first 10 items to avoid too much processing
+            for item in data[:10]:  
                 if isinstance(item, (dict, list)):
                     self._extract_fhir_keys_recursive(item, field_names, max_depth, current_depth + 1)
     
@@ -334,17 +328,14 @@ class ETLService:
         
         for i, profile in enumerate(profiles_data):
             try:
-                # Required fields
                 if not profile.get('id'):
                     raise ValueError(f"Missing ID for profile {i}")
                 if not profile.get('name'):
                     raise ValueError(f"Missing name for profile {i}")
-                
-                # Ensure keywords is a list
+
                 if not isinstance(profile.get('keywords', []), list):
                     profile['keywords'] = []
-                
-                # Ensure use_contexts is a list
+
                 if not isinstance(profile.get('use_contexts', []), list):
                     profile['use_contexts'] = []
                 
@@ -359,8 +350,7 @@ class ETLService:
     def _load_profiles(self, profiles_data: List[Dict], dataset_id: str, db: Session) -> int:
         """Load validated profiles into database - UPDATED VERSION"""
         loaded_count = 0
-        
-        # Session reset for transaction issues
+
         try:
             db.rollback()
         except:
@@ -368,18 +358,15 @@ class ETLService:
         
         for profile_data in profiles_data:
             try:
-                # Base search text from profile metadata
+
                 base_search_text = f"{profile_data['name']} {profile_data['description']} {' '.join(profile_data['keywords'])}"
-                
-                # NEW: Add FHIR resource fields to searchable text
+
                 fhir_search_text = profile_data.get('fhir_searchable_text', '')
                 if fhir_search_text:
                     base_search_text += f" {fhir_search_text}"
-                
-                # Generate embedding from complete search text (now includes FHIR elements)
+
                 embedding = self.model.encode([base_search_text])[0].tolist()
-                
-                # Create profile record
+
                 profile = Profile(
                     id=profile_data['id'],
                     oid=profile_data.get('oid'),  
@@ -400,10 +387,9 @@ class ETLService:
                     embedding_vector=embedding
                 )
                 
-                # Handle duplicates - update if exists
+
                 existing = db.query(Profile).filter(Profile.id == profile_data['id']).first()
                 if existing:
-                    # Update existing profile
                     for key, value in profile_data.items():
                         if hasattr(existing, key):
                             setattr(existing, key, value)
@@ -418,11 +404,10 @@ class ETLService:
                 
             except Exception as e:
                 print(f"Error loading profile {profile_data.get('id', 'unknown')}: {e}")
-                # Rollback on individual errors
+ 
                 db.rollback()
                 continue
-        
-        # Commit with error handling
+ 
         try:
             db.commit()
         except Exception as e:
@@ -435,22 +420,15 @@ class ETLService:
     def activate_dataset(self, dataset_id: str, db: Session) -> bool:
         """Activate a dataset (make its profiles searchable)"""
         try:
-            # Activate profiles from this dataset
             dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
             if not dataset:
                 raise ValueError(f"Dataset {dataset_id} not found")
-            
-            # Update profiles
             profiles_updated = db.query(Profile).filter(
                 Profile.dataset_id == dataset_id
             ).update({"is_active": True})
-            
-            # Update dataset status
             dataset.status = "active"
             dataset.activated_date = datetime.utcnow()
-            
             db.commit()
-            
             print(f"Activated {profiles_updated} profiles from dataset {dataset.name}")
             return True
             
@@ -465,18 +443,12 @@ class ETLService:
             dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
             if not dataset:
                 raise ValueError(f"Dataset {dataset_id} not found")
-            
-            # deactivate profiles
             profiles_updated = db.query(Profile).filter(
                 Profile.dataset_id == dataset_id
             ).update({"is_active": False})
-            
-            # Update dataset status
             dataset.status = "inactive"
             dataset.deactivated_date = datetime.utcnow()
-            
             db.commit()
-            
             print(f"Deactivated {profiles_updated} profiles from dataset {dataset.name}")
             return True
             

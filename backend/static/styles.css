@@ -107,7 +107,7 @@ button {
 }
 
 button:hover {
-    background-color: #45a049;
+    background-color: #dadd20;
 }
 
 button:disabled {
@@ -221,9 +221,28 @@ pre {
 }
 
 .test-buttons button:hover {
-    background-color: #138496;
+    background-color: #aeb108;
 }
 
 #connectionStatus {
     margin-bottom: 20px;
+}
+.copy-button-mini {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(255, 255, 255, 0.8);
+    border: none;
+    border-radius: 3px;
+    padding: 2px 4px;        /* Very small padding */
+    cursor: pointer;
+    font-size: 12px;         /* Small emoji */
+    z-index: 10;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.copy-button-mini:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.95);
 }

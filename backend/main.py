@@ -10,7 +10,7 @@ import os
 # Import routers
 from api.v1.endpoints.search import router as search_router
 from api.v1.endpoints.datasets import router as datasets_router
-from api.v1.endpoints.queryperformance import router as queryperformance_router
+from api.v1.endpoints.query_performance import router as queryperformance_router
 # Import database setup
 from config.database import init_database, get_db
 from config.redis import get_redis_client

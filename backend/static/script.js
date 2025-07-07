@@ -139,13 +139,32 @@ function showResult(html) {
     resultDiv.style.display = 'block';
 }
 
+
+
 function displayCodeResult(result, dataset) {
+
+    let fhirObjects = result.results[0].fhir_resource[0];
+    let textSummary = fhirObjects.text && fhirObjects.text.div ? fhirObjects.text.div : 'No text summary available';
+    fhirObjects.text.div = 'Text context removed for brevity';
+    const uniqueId = `json-${Date.now()}`;
+
     return `<div class="success">
-    <h2>Best match from ${dataset} dataset: ${JSON.stringify(result.results[0].resource_type)}</h2><br/>
-    ${JSON.stringify(result.results[0].fhir_resource[0].text.div)}<br/>
+    <h2>Best match from ${dataset} dataset: ${JSON.stringify(result.results[0].resource_type)}</h2>
+    ${JSON.stringify(textSummary)}<br/>
     <details>
     <summary>Description</summary>
     ${JSON.stringify(result.results[0].description)}
+    </details>
+    <details>
+    <summary>JSON</summary>
+    <button onclick="copyJSONtoClipboard('${uniqueId}', this)" class="copy-button-mini">📋</button>
+    <pre><code id="${uniqueId}">${JSON.stringify(fhirObjects, null, 2)}</code></pre>
+    </details>
+    <details>
+    <summary>Constraints</summary>
+    ${JSON.stringify(result.results[0].must_have[0])}<br/>
+    ${JSON.stringify(result.results[0].must_support[0])}<br/>
+    ${JSON.stringify(result.results[0].invariants[0])}<br/>
     </details>
     <details>
     <summary>Specification URL</summary>
@@ -157,13 +176,36 @@ function displayCodeResult(result, dataset) {
     ${JSON.stringify(result.results[0].match_reasons[1])}
     </details>
     </div>`;
+
+}
+function copyJSONtoClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    const text = element.textContent;
+    
+    navigator.clipboard.writeText(text).then(() => {
+
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
 }
 
+
 function clearResult() {
-    const resultDiv = document.getElementById('result');
-    resultDiv.style.display = 'none';
-    resultDiv.innerHTML = '';
+    const ids = ['result', 'resourceQuery', 'searchQuery', 'formQuery', 'mappingQuery'];
+    
+    ids.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.innerHTML = '';
+            element.value = '';
+            if (id === 'result') {
+                element.style.display = 'none';
+            }
+        }
+    });
 }
+
+
 
 function testRawUMLS() {
     showResult('<div class="loading">🔄 Adding to use case...</div>');
@@ -177,11 +219,9 @@ function getCode() {
     showResult('<div class="loading">🔄 Getting code...</div>');
 }
 
-function testConnection() {
-    showResult('<div class="loading">🔄 Testing connection...</div>');
-}
 
-// Allow Enter key to perform lookup in any active input
+
+
 document.addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         const activeInput = document.querySelector('.tab-content.active input');
@@ -191,7 +231,3 @@ document.addEventListener('keypress', function(e) {
     }
 });
 
-// Test connection on page load
-window.addEventListener('DOMContentLoaded', async () => {
-    setTimeout(testConnection, 500);
-});

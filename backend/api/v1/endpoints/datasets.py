@@ -77,27 +77,24 @@ async def upload_dataset(
                 status_code=400, 
                 detail=f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}"
             )
-        
-        # Create dataset record
+
         dataset = Dataset(
             name=name,
             filename=file.filename,
             description=description,
             status="uploaded",
-            file_size=0  # Will be updated after saving
+            file_size=0  
         )
         
         db.add(dataset)
-        db.flush()  # Get the dataset ID
-        
-        # Save uploaded file
+        db.flush()  
+
         file_path = os.path.join(UPLOAD_DIR, f"{dataset.id}_{file.filename}")
         
         with open(file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
-        
-        # Update dataset with file info
+
         dataset.file_path = file_path
         dataset.file_size = len(content)
         db.commit()
@@ -118,9 +115,8 @@ async def download_dataset(
     dataset_id: str,
     db: Session = Depends(get_db)
 ):
-    """Download a dataset file"""
     try:
-        # Get dataset from database
+
         dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
         
         if not dataset:
@@ -128,16 +124,14 @@ async def download_dataset(
             
         if not dataset.file_path:
             raise HTTPException(status_code=404, detail="No file associated with this dataset")
-            
-        # Check if file exists on disk
+
         if not os.path.exists(dataset.file_path):
             raise HTTPException(status_code=404, detail="File not found on disk")
         
         dataset.download_count = (dataset.download_count or 0) + 1
         dataset.last_downloaded = datetime.utcnow()
         db.commit()
-            
-        # Return file response
+
         return FileResponse(
             path=dataset.file_path,
             filename=dataset.filename,
@@ -153,7 +147,7 @@ async def download_dataset(
 async def process_dataset(dataset_id: str, db: Session = Depends(get_db)):
     """Process an uploaded dataset"""
     try:
-        # Check if dataset exists
+
         dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
         if not dataset:
             raise HTTPException(status_code=404, detail="Dataset not found")
@@ -163,8 +157,7 @@ async def process_dataset(dataset_id: str, db: Session = Depends(get_db)):
                 status_code=400, 
                 detail=f"Dataset is in '{dataset.status}' status and cannot be processed"
             )
-        
-        # Process the dataset
+ 
         success = etl_service.process_dataset(dataset_id, db)
         
         if success:
@@ -229,8 +222,6 @@ async def deactivate_dataset(dataset_id: str, db: Session = Depends(get_db)):
                 status_code=400,
                 detail=f"Dataset must be in 'active' status to deactivate. Current status: {dataset.status}"
             )
-        
-        # Activate the dataset
         success = etl_service.deactivate_dataset(dataset_id, db)
         
         if success:
@@ -249,8 +240,6 @@ async def deactivate_dataset(dataset_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Activation failed: {str(e)}")
     
-
-
 @router.delete("/datasets/{dataset_id}")
 async def delete_dataset(dataset_id: str, db: Session = Depends(get_db)):
     """Delete a dataset and all its profiles"""
@@ -258,19 +247,15 @@ async def delete_dataset(dataset_id: str, db: Session = Depends(get_db)):
         dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
         if not dataset:
             raise HTTPException(status_code=404, detail="Dataset not found")
-        
-        # Don't allow deleting active datasets
+
         if dataset.status == "active":
             raise HTTPException(
                 status_code=400,
                 detail="Cannot delete active dataset. Activate another dataset first."
             )
         
-        # Delete associated file
         if dataset.file_path and os.path.exists(dataset.file_path):
             os.remove(dataset.file_path)
-        
-        # Delete from database (profiles will be deleted via cascade)
         db.delete(dataset)
         db.commit()
         
