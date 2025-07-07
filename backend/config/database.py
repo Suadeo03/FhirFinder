@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from models.database.models import Base
 import os
-
+from sqlalchemy import text
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://fhir_user:admin@localhost:5432/fhir_registry")
 
@@ -20,7 +20,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def create_tables():
     """Create all database tables"""
-
 
     Base.metadata.create_all(bind=engine)
     print("Database tables created successfully")

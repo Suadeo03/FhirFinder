@@ -382,6 +382,7 @@ class ETLService:
                     resource_type=profile_data['resource_type'],
                     use_contexts=profile_data['use_contexts'],
                     fhir_resource=profile_data.get('fhir_resource'),
+                    fhir_searchable_text=profile_data.get('fhir_searchable_text', ''),
                     dataset_id=dataset_id,
                     search_text=base_search_text, 
                     embedding_vector=embedding

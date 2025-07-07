@@ -52,6 +52,7 @@ class Profile(Base):
     resource_type = Column(String(100))
     use_contexts = Column(JSON)  # [{"scenario": "...", "keywords": [...]}]
     fhir_resource = Column(JSON)
+    fhir_searchable_text = Column(JSON)  # Store searchable text for FHIR resources
     # Metadata
     dataset_id = Column(String, ForeignKey("datasets.id"), nullable=False)
     is_active = Column(Boolean, default=False)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 import tempfile
 import pandas as pd
@@ -73,12 +73,12 @@ async def get_performance(db: Session = Depends(get_db)):
 @router.get("/performance/download")
 async def download_log_dataset(
     format: str = "csv",
+    limit: int = Query(1000, ge=1, le=10000, description="Maximum number of rows to download"),
     db: Session = Depends(get_db)
 ):
     try:
         logfile_records = db.query(QueryPerformance).order_by(
-            QueryPerformance.profile_score.desc()
-        ).all()
+            QueryPerformance.profile_score.desc().limit(limit).all())
         
         if not logfile_records:
             raise HTTPException(status_code=404, detail="No performance data found")
