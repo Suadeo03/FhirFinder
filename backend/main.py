@@ -6,19 +6,19 @@ from sqlalchemy.orm import Session
 import logging as logger
 import os
 
-
 # Import routers
 from api.v1.endpoints.search import router as search_router
 from api.v1.endpoints.datasets import router as datasets_router
 from api.v1.endpoints.query_performance import router as queryperformance_router
-# Import database setup
+
 from config.database import init_database, get_db
-from config.redis import get_redis_client
-from services.database_search_service import DatabaseSearchService
+from config.redis import RedisQueryCache
+from services.search_service import SearchService
 
 # Initialize database on startup
 init_database()
-redis_client = get_redis_client()
+cache = RedisQueryCache()
+
 
 app = FastAPI(
     title="FHIR Profile Recommender",
@@ -63,7 +63,7 @@ async def root():
 async def health(db: Session = Depends(get_db)):
     """Health check with database connectivity and search stats"""
     try:
-        search_service = DatabaseSearchService()
+        search_service = SearchService()
         stats = search_service.get_search_stats(db)
         
         return {
@@ -78,23 +78,13 @@ async def health(db: Session = Depends(get_db)):
             "error": str(e)
         }
 @app.get("/health/redis")
-async def health(redis_client=Depends(get_redis_client)):
+def redis_health():
     """Health check with database connectivity and search stats"""
-    try:
-        redis_client.ping()  
-        
-        return {
-            "status": "healthy",
-            "database": "connected",
-
-        }
-    except Exception as e:
-        return {
-            "status": "degraded",
-            "database": "error",
-            "error": str(e)
-        }
-
+    cache = RedisQueryCache()
+    if cache.is_connected():
+        return {"status": "healthy", "redis": "connected"}
+    else:
+        return {"status": "unhealthy", "redis": "disconnected"}
 
 
 if __name__ == "__main__":

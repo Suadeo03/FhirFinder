@@ -19,30 +19,26 @@ class ETLService:
         self.collection = ChromaConfig().collection
     
     def process_dataset(self, dataset_id: str, db: Session) -> bool:
-        """Process an uploaded dataset"""
+
         try:
             # Get dataset
             dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
             if not dataset:
                 raise ValueError(f"Dataset {dataset_id} not found")
             
-            # Update status
+
             dataset.status = "processing"
             db.commit()
-            
-            # Load and parse file
+
             raw_data = self._load_file(dataset.file_path)
-            
-            # Transform data
+
             profiles_data = self._transform_data(raw_data, dataset.filename)
-            
-            # Validate data
+
             validated_data = self._validate_profiles(profiles_data)
-            
-            # Load into database
+
             profile_count = self._load_profiles(validated_data, dataset_id, db)
             
-            # Update dataset
+  
             dataset.status = "ready"
             dataset.processed_date = datetime.utcnow()
             dataset.record_count = profile_count
@@ -52,7 +48,7 @@ class ETLService:
             return True
             
         except Exception as e:
-            # Update dataset with error
+
             dataset.status = "failed"
             dataset.error_message = str(e)
             db.commit()

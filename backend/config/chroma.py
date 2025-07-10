@@ -3,7 +3,6 @@ import os
 from chromadb.config import Settings
 
 class ChromaConfig:
-    """Configuration class for Chroma client initialization with robust fallbacks"""
     
     def __init__(self):
         self.chroma_client = None
@@ -12,38 +11,35 @@ class ChromaConfig:
         self.init_chroma()
 
     def init_chroma(self):
-        """Initialize Chroma client with multiple fallback strategies"""
+
         collection_name = os.getenv('CHROMA_COLLECTION_NAME', 'fhir_profiles')
         
-        # Strategy 1: Try HTTP server connection
         if self._try_http_connection(collection_name):
             return
-            
-        # Strategy 2: Try persistent local client
         if self._try_persistent_client(collection_name):
             return
-            
-        # Strategy 3: Fall back to in-memory client
         if self._try_in_memory_client(collection_name):
             return
-            
-        # All strategies failed
-        print("❌ All Chroma initialization strategies failed")
+
+        print("All Chroma initialization strategies failed")
         self.chroma_client = None
         self.collection = None
         self.connection_mode = "failed"
 
     def _try_http_connection(self, collection_name: str) -> bool:
-        """Try to connect to Chroma HTTP server"""
+        """Try to connect to Chroma HTTP server (Docker or remote)"""
+
+        
+        host = os.getenv('CHROMA_HOST', 'localhost')
+        port = os.getenv('CHROMA_PORT', '8001')
+ 
         try:
-            chroma_host = os.getenv('CHROMA_HOST', 'chromadb')
-            chroma_port = int(os.getenv('CHROMA_PORT', '8001'))
+            print(f"🔄 Attempting Chroma HTTP connection to {host}:{port}")
             
-            print(f"🔄 Attempting Chroma HTTP connection to {chroma_host}:{chroma_port}")
-            
+            # Create client with timeout settings
             self.chroma_client = chromadb.HttpClient(
-                host=chroma_host,
-                port=chroma_port,
+                host=host,
+                port=port,
                 settings=Settings(
                     chroma_client_auth_provider="chromadb.auth.token.TokenAuthClientProvider",
                     chroma_client_auth_credentials=os.getenv('CHROMA_TOKEN', ''),
@@ -51,31 +47,29 @@ class ChromaConfig:
                 ) if os.getenv('CHROMA_TOKEN') else Settings(allow_reset=True)
             )
             
-            # Test the connection
+            import socket
+            socket.setdefaulttimeout(5)  
+            
             heartbeat = self.chroma_client.heartbeat()
             print(f"✅ Chroma server heartbeat: {heartbeat}")
             
-            # Get or create collection
             self.collection = self._get_or_create_collection(collection_name)
             if self.collection:
-                self.connection_mode = "http_server"
-                print(f"✅ Connected to Chroma HTTP server collection: {collection_name}")
+                self.connection_mode = f"http_server_{host}:{port}"
+                print(f"✅ Connected to Chroma HTTP server at {host}:{port}")
                 return True
-                
+                    
         except Exception as e:
-            print(f"❌ HTTP connection failed: {e}")
-            
+                print(f"❌ HTTP connection to {host}:{port} failed: {e}")
         return False
 
     def _try_persistent_client(self, collection_name: str) -> bool:
-        """Try to use persistent local Chroma client"""
+        """persistent local Chroma client"""
         try:
             persist_directory = os.getenv('CHROMA_PERSIST_DIR', './chroma_db')
             print(f"🔄 Attempting persistent Chroma client at {persist_directory}")
             
-            # Ensure directory exists
             os.makedirs(persist_directory, exist_ok=True)
-            
             self.chroma_client = chromadb.PersistentClient(
                 path=persist_directory,
                 settings=Settings(
@@ -84,7 +78,7 @@ class ChromaConfig:
                 )
             )
             
-            # Get or create collection
+
             self.collection = self._get_or_create_collection(collection_name)
             if self.collection:
                 self.connection_mode = "persistent_local"
@@ -92,14 +86,14 @@ class ChromaConfig:
                 return True
                 
         except Exception as e:
-            print(f"❌ Persistent client failed: {e}")
+            print(f"Persistent client failed: {e}")
             
         return False
 
     def _try_in_memory_client(self, collection_name: str) -> bool:
-        """Try to use in-memory Chroma client (last resort)"""
+
         try:
-            print("🔄 Attempting in-memory Chroma client")
+            print("Attempting in-memory Chroma client")
             
             self.chroma_client = chromadb.Client(
                 settings=Settings(
@@ -108,45 +102,43 @@ class ChromaConfig:
                 )
             )
             
-            # Get or create collection
+
             self.collection = self._get_or_create_collection(collection_name)
             if self.collection:
                 self.connection_mode = "in_memory"
-                print("⚠️  Using in-memory Chroma (data will not persist)")
+                print("Using in-memory Chroma (data will not persist)")
                 return True
                 
         except Exception as e:
-            print(f"❌ In-memory client failed: {e}")
+            print(f"In-memory client failed: {e}")
             
         return False
 
     def _get_or_create_collection(self, collection_name: str):
-        """Get existing collection or create new one"""
         try:
-            # Try to get existing collection first
+
             collection = self.chroma_client.get_collection(name=collection_name)
             print(f"📁 Found existing collection: {collection_name}")
             return collection
             
         except Exception:
             try:
-                # Create new collection if it doesn't exist
                 collection = self.chroma_client.create_collection(
                     name=collection_name,
                     metadata={
                         "description": "FHIR Profile embeddings",
-                        "hnsw:space": "cosine"  # Use cosine similarity
+                        "hnsw:space": "cosine" 
                     }
                 )
-                print(f"📁 Created new collection: {collection_name}")
+                print(f"Created new collection: {collection_name}")
                 return collection
                 
             except Exception as e:
-                print(f"❌ Failed to create collection {collection_name}: {e}")
+                print(f"Failed to create collection {collection_name}: {e}")
                 return None
 
     def get_client_info(self) -> dict:
-        """Get information about the current Chroma client"""
+
         return {
             "client_type": type(self.chroma_client).__name__ if self.chroma_client else None,
             "connection_mode": self.connection_mode,
@@ -169,3 +161,24 @@ class ChromaConfig:
         except Exception as e:
             print(f"❌ Chroma test failed: {e}")
             return False
+
+    def clear_collection(self, collection_name: str = None):
+        """Clear a specific collection or the current collection"""
+        try:
+            if collection_name:
+                collection = self.chroma_client.get_collection(collection_name)
+            else:
+                collection = self.collection
+                
+            if collection:
+                all_items = collection.get()
+                if all_items['ids']:
+                    collection.delete(ids=all_items['ids'])
+                    print(f"✅ Cleared {len(all_items['ids'])} items from {collection.name}")
+                else:
+                    print(f"ℹ️  Collection {collection.name} was already empty")
+            else:
+                print("❌ No collection available to clear")
+                
+        except Exception as e:
+            print(f"❌ Error clearing collection: {e}")

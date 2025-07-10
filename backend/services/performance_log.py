@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from models.database.models import QueryPerformance
 
-# Records the query and scorces of the matches
+# Records the query and sources of the matches
 
 def create_performance_log(profile_id, query_text, profile_name, profile_oid, 
                            profile_score, context_score, combined_score, 

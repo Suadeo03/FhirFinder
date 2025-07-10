@@ -57,6 +57,8 @@ services:
       environment:
         - IS_PERSISTENT=TRUE
         - ANONYMIZED_TELEMETRY=FALSE
+        - CHROMA_HOST=0.0.0.0     
+        - CHROMA_PORT=8001         
       restart: unless-stopped
       healthcheck:
         test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/heartbeat"]

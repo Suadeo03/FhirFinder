@@ -66,7 +66,7 @@ async def upload_dataset(
     description: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
-    """Upload a new dataset file"""
+ 
     try:
         # Validate file type
         allowed_extensions = {'.csv', '.json', '.xlsx', '.xls'}

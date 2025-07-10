@@ -10,7 +10,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://fhir_user:admin@localhost
 # Create engine
 engine = create_engine(
     DATABASE_URL,
-    echo=True if os.getenv("DEBUG") else False,  # Log SQL queries in debug mode
+    echo=True if os.getenv("DEBUG") else False,  
 )
 
 # Create session factory
@@ -18,7 +18,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def create_tables():
-    """Create all database tables"""
+
 
     Base.metadata.create_all(bind=engine)
     print("Database tables created successfully")
@@ -33,12 +33,10 @@ def get_db():
 
 # Initialize database on import
 def init_database():
-    """Initialize database with tables"""
+
     try:
         create_tables()
         print("Database initialized successfully")
     except Exception as e:
         print(f"Error initializing database: {e}")
 
-if __name__ == "__main__":
-    init_database()

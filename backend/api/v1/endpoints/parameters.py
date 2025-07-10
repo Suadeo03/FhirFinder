@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 from config.database import get_db
-from services.database_search_service import DatabaseSearchService
+from backend.services.search_service import DatabaseSearchService
 
 router = APIRouter()
 

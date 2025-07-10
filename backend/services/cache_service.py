@@ -1,4 +1,4 @@
-from config.redis import get_redis_client
+from config.redis import RedisQueryCache
 import hashlib
 import logging
 from typing import Optional
@@ -11,7 +11,7 @@ from typing import Optional
 # conditions for caching high frequcency (last 30 days) with no "negative" feedback
 class RedisQueryCache:
     def __init__(self):
-        self.redis_client = get_redis_client()
+        self.redis_client = RedisQueryCache()
         
         # Test connection
         try:
