@@ -2,26 +2,18 @@
 let currentTab = 'resources';
 
 function switchTab(tabName) {
-    // Hide all tab contents
+ 
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
     
-    // Remove active class from all tab buttons
     document.querySelectorAll('.tab-button').forEach(button => {
         button.classList.remove('active');
     });
     
-    // Show selected tab content
     document.getElementById(tabName + '-tab').classList.add('active');
-    
-    // Add active class to clicked tab button
     event.target.classList.add('active');
-    
-    // Update current tab
     currentTab = tabName;
-    
-    // Clear previous results when switching tabs
     clearResult();
 }
 
@@ -54,10 +46,10 @@ class FhirTextQuery {
                 case 'terminology':
                     endpoint = '/api/v1/parameters/';
                     break;
-                case 'patients':
+                case 'assessments':
                     endpoint = '/api/v1/form/';
                     break;
-                case 'clinical':
+                case 'mapping':
                     endpoint = '/api/v1/mapping/';
                     break;
             }
@@ -123,11 +115,11 @@ async function lookupBtn() {
         if (hasResults(result)) {
             showResult(displayCodeResult(result, currentTab));
         } else {
-            showResult(`<div class="error">❌ No results found in ${currentTab} dataset</div>`);
+            showResult(`<div class="error">No results found in ${currentTab} dataset</div>`);
         }
     } catch (error) {
         console.error('Frontend error:', error);
-        showResult(`<div class="error">❌ Error searching ${currentTab}: ${error.message}</div>`);
+        showResult(`<div class="error">Error searching ${currentTab}: ${error.message}</div>`);
     } finally {
         btn.disabled = false; 
     }
@@ -142,41 +134,111 @@ function showResult(html) {
 
 
 function displayCodeResult(result, dataset) {
+    console.log('displayCodeResult called with:', result);
+    
+    if (!result?.results?.[0]) {
+        console.error('Invalid result structure:', result);
+        return '<div class="error">Invalid response structure</div>';
+    }
+    
+    const firstResult = result.results[0];
+    console.log('First result:', firstResult);
+    
+    let fhirObjects = {};
+    let textSummary = 'No text summary available';
+    
+    try {
 
-    let fhirObjects = result.results[0].fhir_resource[0];
-    let textSummary = fhirObjects.text && fhirObjects.text.div ? fhirObjects.text.div : 'No text summary available';
-    fhirObjects.text.div = 'Text context removed for brevity';
+        if (firstResult.fhir_resource && 
+            Array.isArray(firstResult.fhir_resource) && 
+            firstResult.fhir_resource.length > 0) {
+            
+            const originalFhirObject = firstResult.fhir_resource[0];
+            
+            if (originalFhirObject?.text?.div && originalFhirObject.text.div !== 'Text context removed for brevity') {
+                textSummary = originalFhirObject.text.div;
+            }
+            
+            fhirObjects = JSON.parse(JSON.stringify(originalFhirObject));
+            
+            if (fhirObjects.text) {
+                fhirObjects.text.div = 'Text context removed for brevity';
+            }
+        } else {
+            console.warn('Not a valid array:', firstResult.fhir_resource);
+            fhirObjects = { error: 'No FHIR resource data available' };
+        }
+    } catch (error) {
+        console.error('Error processing:', error);
+        fhirObjects = { error: 'Error processing FHIR resource data' };
+    }
+    
     const uniqueId = `json-${Date.now()}`;
+    
+    const resourceType = firstResult.resource_type || 'Unknown';
+    const description = firstResult.description || 'No description available';
+    
+  
+    const mustHave = Array.isArray(firstResult.must_have) && firstResult.must_have.length > 0 
+        ? firstResult.must_have[0] 
+        : 'None specified';
+        
+    const mustSupport = Array.isArray(firstResult.must_support) && firstResult.must_support.length > 0 
+        ? firstResult.must_support[0] 
+        : 'None specified';
+        
+    const invariants = Array.isArray(firstResult.invariants) && firstResult.invariants.length > 0 
+        ? firstResult.invariants[0] 
+        : 'None specified';
+    
+    const resourceUrl = firstResult.resource_url && firstResult.resource_url !== 'None available' 
+        ? firstResult.resource_url 
+        : '#';
 
     return `<div class="success">
-    <h2>Best match from ${dataset} dataset: ${JSON.stringify(result.results[0].resource_type)}</h2>
-    ${JSON.stringify(textSummary)}<br/>
-    <details>
-    <summary>Description</summary>
-    ${JSON.stringify(result.results[0].description)}
-    </details>
-    <details>
-    <summary>JSON</summary>
-    <button onclick="copyJSONtoClipboard('${uniqueId}', this)" class="copy-button-mini">📋</button>
-    <pre><code id="${uniqueId}">${JSON.stringify(fhirObjects, null, 2)}</code></pre>
-    </details>
-    <details>
-    <summary>Constraints</summary>
-    ${JSON.stringify(result.results[0].must_have[0])}<br/>
-    ${JSON.stringify(result.results[0].must_support[0])}<br/>
-    ${JSON.stringify(result.results[0].invariants[0])}<br/>
-    </details>
-    <details>
-    <summary>Specification URL</summary>
-    <a href=${JSON.stringify(result.results[0].resource_url)}>${JSON.stringify(result.results[0].resource_url)}</a>
-    </details>
-    <details>
-    <summary>Match Metrics [Development ONLY View]</summary>
-    ${JSON.stringify(result.results[0].match_reasons[0])}<br/>
-    ${JSON.stringify(result.results[0].match_reasons[1])}
-    </details>
+        <h2>Best match from ${dataset} dataset: ${escapeHtml(resourceType)}</h2>
+        <div class="text-summary">${textSummary}</div><br/>
+        
+        <details>
+            <summary>Description</summary>
+            <div class="description">${escapeHtml(description)}</div>
+        </details>
+        
+        <details>
+            <summary>JSON Resource</summary>
+            <button onclick="copyJSONtoClipboard('${uniqueId}', this)" class="copy-button-mini">Copy JSON</button>
+            <pre><code id="${uniqueId}">${JSON.stringify(fhirObjects, null, 2)}</code></pre>
+        </details>
+        
+        <details>
+            <summary>Constraints</summary>
+            <div><strong>Must Have:</strong> ${escapeHtml(mustHave)}</div>
+            <div><strong>Must Support:</strong> ${escapeHtml(mustSupport)}</div>
+            <div><strong>Invariants:</strong> ${escapeHtml(invariants)}</div>
+        </details>
+        
+        <details>
+            <summary>Specification</summary>
+            ${resourceUrl !== '#' 
+                ? `<a href="${escapeHtml(resourceUrl)}" target="_blank" rel="noopener">${escapeHtml(resourceUrl)}</a>`
+                : 'No specification URL available'
+            }
+        </details>
+        
+        <div class="similarity-score">
+            <small>Similarity Score: ${(firstResult.similarity_score * 100).toFixed(1)}%</small>
+        </div>
     </div>`;
+}
 
+// Helper function to escape HTML and prevent XSS
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return String(text);
+    }
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 function copyJSONtoClipboard(elementId) {
     const element = document.getElementById(elementId);

@@ -38,7 +38,7 @@ class ProcessResponse(BaseModel):
     message: str
     dataset_id: str
 
-# Create uploads directory
+
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 

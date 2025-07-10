@@ -12,9 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      # Persistent data storage
       - postgres_data:/var/lib/postgresql/data
-      # Optional: initialization scripts
       - ./init-scripts:/docker-entrypoint-initdb.d
     restart: unless-stopped
     healthcheck:
@@ -23,7 +21,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # Optional: pgAdmin for database management
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: fhir_pgadmin
@@ -38,7 +36,7 @@ services:
       - postgres
     restart: unless-stopped
 
-  # Redis for caching
+  
   redis:
     image: redis:7-alpine
     container_name: fhir_redis
@@ -49,10 +47,31 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
 
+  chroma:
+      image: chromadb/chroma:latest
+      container_name: fhir_chroma
+      ports:
+        - "8001:8001"
+      volumes:
+        - chroma_data:/chroma/chroma
+      environment:
+        - IS_PERSISTENT=TRUE
+        - ANONYMIZED_TELEMETRY=FALSE
+      restart: unless-stopped
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/heartbeat"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+
+
+
 volumes:
   postgres_data:
     driver: local
   pgadmin_data:
     driver: local
   redis_data:
+    driver: local
+  chroma_data:
     driver: local

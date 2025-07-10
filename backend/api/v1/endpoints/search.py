@@ -24,14 +24,14 @@ async def search_profiles(request: SearchRequest, db: Session = Depends(get_db))
     """Search FHIR profiles using semantic similarity and keyword matching"""
     try:
         search_service = DatabaseSearchService()
-        results = search_service.search(request.query, request.limit, db)
-        stats = search_service.get_search_stats(db)
+        results = search_service.semantic_search(request.query, request.limit, db)
+        #stats = search_service.get_search_stats(db)
         
         return SearchResponse(
             query=request.query,
             results=results,
             total_results=len(results),
-            search_stats=stats
+            #search_stats=stats
         )
         
     except Exception as e:

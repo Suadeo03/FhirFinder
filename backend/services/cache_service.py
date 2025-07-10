@@ -1,142 +1,181 @@
+from config.redis import get_redis_client
 import hashlib
-import json
-from config import get_redis_client
-import numpy as np
-import re
 import logging
-import time
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
-from typing import Optional, Dict, Any
+from typing import Optional
+
+# Configure logging
+#logging.basicConfig(level=logging.INFO)
+#logger = logging.getLogger(__name__)
 
 
+# conditions for caching high frequcency (last 30 days) with no "negative" feedback
+class RedisQueryCache:
+    def __init__(self):
+        self.redis_client = get_redis_client()
+        
+        # Test connection
+        try:
+            self.redis_client.ping()
+            logger.info("Connected to Redis successfully")
+        except self.redis_client.ConnectionError as e:
+            logger.error(f"Failed to connect to Redis: {e}")
+            raise
 
-class HybridCache:
-    def __init__(self, get_redis_client=get_redis_client):
-        self.redis = get_redis_client()
-        if not self.redis:
-            raise ValueError("Redis client not initialized")
-        self.redis.ping()
-        logging.info("Connected to Redis cache successfully")
-        self.embeddings_model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.semantic_threshold = 0.9
-    
-    def search_with_cache(self, query):
-        # Level 1: Exact cache (fastest)
-        exact_key = f"exact:{hashlib.md5(query.encode()).hexdigest()}"
-        cached = self.redis.get(exact_key)
-        if cached:
-            return json.loads(cached), "exact_hit"
+    def _hash_query(self, query: str) -> str:
+        normalized_query = query.lower().strip()
+        return hashlib.sha256(normalized_query.encode('utf-8')).hexdigest()
+
+    def search_query_in_cache(self, user_query: str) -> Optional[str]:
+        """
+        Search for a user query in Redis cache and return the UUID if found
         
-        # Level 2: Normalized cache (fast)
-        normalized = self.normalize_query(query)
-        norm_key = f"norm:{hashlib.md5(normalized.encode()).hexdigest()}"
-        cached = self.redis.get(norm_key)
-        if cached:
-            return json.loads(cached), "normalized_hit"
-        
-        # Level 3: Semantic cache (slower, but broader coverage)
-        semantic_result = self.check_semantic_cache(query)
-        if semantic_result:
-            return semantic_result, "semantic_hit"
-        
-        return None
-    
-    def normalize_query(self, query):
-        """Normalized preprocessing"""
-        return re.sub(r'[^\w\s]', '', query.lower().strip())
-    
-    def check_semantic_cache(self, query):
-        """Check for semantically similar cached queries"""
-        query_vector = self.embeddings_model.encode([query])[0]
-        
-        # Get all cached vectors
-        cached_vectors = self.redis.hgetall("semantic_vectors")
-        
-        for cached_hash, vector_json in cached_vectors.items():
-            cached_vector = np.array(json.loads(vector_json))
-            similarity = cosine_similarity([query_vector], [cached_vector])[0][0]
+        Args:
+            user_query (str): The search query to look for
             
-            if similarity >= self.semantic_threshold:
-                cached_results = self.redis.get(f"sem_results:{cached_hash}")
-                if cached_results:
-                    return json.loads(cached_results)
-        
-        return None
-    
-    def cache_results(self, exact_key, norm_key, query, results):
-        """Cache results at multiple levels"""
-        # Cache exact and normalized
-        self.redis.setex(exact_key, 3600, json.dumps(results))
-        self.redis.setex(norm_key, 3600, json.dumps(results))
-        
-        # Cache semantic
-        query_vector = self.embeddings_model.encode([query])[0]
-        sem_hash = hashlib.md5(query.encode()).hexdigest()
-        
-        self.redis.hset("semantic_vectors", sem_hash, json.dumps(query_vector.tolist()))
-        self.redis.setex(f"sem_results:{sem_hash}", 3600, json.dumps(results))
-
-# review
-class SearchCacheService:
-    def __init__(self, redis_client, database):
-        self.cache = redis_client
-        self.db = database
-    
-    def search_with_cache(self, query, include_content=True):
-        cache_key = f"search:{hashlib.md5(query.encode()).hexdigest()}"
-        
-        # Check cache for search metadata
-        cached_data = self.cache.get(cache_key)
-        if cached_data:
-            print("Cache hit")
-            search_metadata = json.loads(cached_data)
+        Returns:
+            Optional[str]: Returns UUID if found, None if not found
             
-            if include_content:
-                # Fetch fresh content from database
-                return self.hydrate_results(search_metadata)
+        Raises:
+            redis.RedisError: If there's an error with Redis operations
+        """
+        try:
+            # Hash the user query to create a consistent key
+            hashed_query = self._hash_query(user_query)
+            
+            # Try to get the UUID from Redis using the hashed query as key
+            cached_uuid = self.redis_client.get(hashed_query)
+            
+            if cached_uuid:
+                print(f'Cache hit for query: "{user_query}"')
+                return cached_uuid
             else:
-                # Return just metadata (fast)
-                return search_metadata
+                print(F'Cache miss for query: "{user_query}"')
+                return None
+                
+        except self.redis.RedisError as e:
+            print(f'Error searching in Redis cache: {e}')
+            raise
+
+    def cache_query_uuid(self, user_query: str, uuid: str, ttl: int = 3600) -> bool:
+        """
+        Store a query-UUID pair in Redis cache
         
-        # Cache miss - perform vector search
-        print("Cache miss - performing vector search")
-        full_results = self.vector_search(query)
+        Args:
+            user_query (str): The search query
+            uuid (str): The UUID to associate with the query
+            ttl (int): Time to live in seconds (default 3600, 0 for no expiration)
+            
+        Returns:
+            bool: True if successful, False otherwise
+            
+        Raises:
+            redis.RedisError: If there's an error with Redis operations
+        """
+        try:
+            hashed_query = self._hash_query(user_query)
+            
+            if ttl > 0:
+                result = self.redis_client.setex(hashed_query, ttl, uuid)
+            else:
+                result = self.redis_client.set(hashed_query, uuid)
+            
+            if result:
+                logger.info(f'Cached query: "{user_query}" with UUID: {uuid}')
+                return True
+            else:
+                logger.warning(f'Failed to cache query: "{user_query}"')
+                return False
+                
+        except self.redis.RedisError as e:
+            logger.error(f'Error caching query in Redis: {e}')
+            raise
+
+    def delete_query_from_cache(self, user_query: str) -> bool:
+        """
+        Delete a query from the cache
         
-        # Extract metadata for caching
-        search_metadata = [
-            {
-                'id': result['id'],
-                'score': result['score'],
-                'rank': i,
-                'timestamp': time.time()
-            }
-            for i, result in enumerate(full_results)
-        ]
-        
-        # Cache metadata
-        self.cache.setex(cache_key, 3600, json.dumps(search_metadata))
-        
-        return full_results
+        Args:
+            user_query (str): The query to delete
+            
+        Returns:
+            bool: True if deleted, False if not found
+        """
+        try:
+            hashed_query = self._hash_query(user_query)
+            result = self.redis_client.delete(hashed_query)
+            
+            if result:
+                logger.info(f'Deleted query from cache: "{user_query}"')
+                return True
+            else:
+                logger.info(f'Query not found in cache for deletion: "{user_query}"')
+                return False
+                
+        except self.redis.RedisError as e:
+            logger.error(f'Error deleting query from Redis cache: {e}')
+            raise
+
+    def close_connection(self):
+        """Close the Redis connection"""
+        try:
+            self.redis_client.close()
+            self.logger.info("Redis connection closed")
+        except Exception as e:
+            self.logger.error(f"Error closing Redis connection: {e}")
+
+
+# Standalone functions for simple usage
+def search_query_in_cache(user_query: str, redis_host='localhost', redis_port=6379) -> Optional[str]:
+    """
+    Standalone function to search for a query in Redis cache
     
-    def hydrate_results(self, search_metadata):
-        """Fetch fresh content and merge with cached metadata"""
-        doc_ids = [item['id'] for item in search_metadata]
-        fresh_documents = self.db.get_documents_by_ids(doc_ids)
+    Args:
+        user_query (str): The search query to look for
+        redis_host (str): Redis host
+        redis_port (int): Redis port
         
-        # Create lookup for fast merging
-        doc_lookup = {doc['id']: doc for doc in fresh_documents}
+    Returns:
+        Optional[str]: Returns UUID if found, None if not found
+    """
+    cache = RedisQueryCache(host=redis_host, port=redis_port)
+    try:
+        return cache.search_query_in_cache(user_query)
+    finally:
+        cache.close_connection()
+
+
+# Example usage
+def example_usage():
+    """Example of how to use the Redis query cache"""
+    
+    # Initialize the cache
+    cache = RedisQueryCache(host='localhost', port=6379)
+    
+    try:
+        # Example 1: Search for a query
+        user_query = "how to use redis with python"
+        uuid = cache.search_query_in_cache(user_query)
         
-        # Merge cached metadata with fresh content
-        hydrated_results = []
-        for metadata in search_metadata:
-            doc_id = metadata['id']
-            if doc_id in doc_lookup:
-                result = {
-                    **doc_lookup[doc_id],  # Fresh content
-                    'search_score': metadata['score'],
-                    'search_rank': metadata['rank']
-                }
-                hydrated_results.append(result)
+        if uuid:
+            print(f"Found UUID: {uuid} - now lookup in PostgreSQL")
+            # Here you would make your PostgreSQL query using the UUID
+        else:
+            print("Query not found in cache")
+            
+        # Example 2: Cache a new query-UUID pair
+        new_uuid = "123e4567-e89b-12d3-a456-426614174000"
+        cache.cache_query_uuid(user_query, new_uuid, ttl=3600)
         
-        return hydrated_results
+        # Example 3: Search again to verify it's cached
+        found_uuid = cache.search_query_in_cache(user_query)
+        if found_uuid:
+            print(f"Successfully cached and retrieved UUID: {found_uuid}")
+            
+    except self.redis_client.RedisError as e:
+        print(f"Redis error: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+    finally:
+        cache.close_connection()
+
+

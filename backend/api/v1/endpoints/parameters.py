@@ -1,4 +1,4 @@
-# backend/api/v1/endpoints/search.py (UPDATED FOR DATABASE)
+# backend/api/v1/endpoints/search.py 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel

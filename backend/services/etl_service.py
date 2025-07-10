@@ -5,6 +5,7 @@ import uuid
 from typing import List, Dict, Any, Union, Optional
 from sqlalchemy.orm import Session
 from models.database.models import Dataset, Profile, ProcessingJob
+from config.chroma import ChromaConfig
 from sentence_transformers import SentenceTransformer
 import re
 from datetime import datetime
@@ -13,7 +14,9 @@ class ETLService:
 
     
     def __init__(self):
+ 
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.collection = ChromaConfig().collection
     
     def process_dataset(self, dataset_id: str, db: Session) -> bool:
         """Process an uploaded dataset"""
@@ -350,6 +353,8 @@ class ETLService:
     def _load_profiles(self, profiles_data: List[Dict], dataset_id: str, db: Session) -> int:
         """Load validated profiles into database - UPDATED VERSION"""
         loaded_count = 0
+        search_texts = []
+        embeddings = []
 
         try:
             db.rollback()
@@ -385,7 +390,6 @@ class ETLService:
                     fhir_searchable_text=profile_data.get('fhir_searchable_text', ''),
                     dataset_id=dataset_id,
                     search_text=base_search_text, 
-                    embedding_vector=embedding
                 )
                 
 
@@ -401,6 +405,10 @@ class ETLService:
 
                     db.add(profile)
                 
+                search_texts.append(base_search_text)
+                embeddings.append(embedding)
+                profile_data['dataset_id'] = dataset_id 
+                
                 loaded_count += 1
                 
             except Exception as e:
@@ -415,11 +423,14 @@ class ETLService:
             print(f"Commit failed: {e}")
             db.rollback()
             raise
+        
+        if self.collection and profiles_data:
+            self._batch_add_to_chroma(profiles_data, search_texts, embeddings)
             
         return loaded_count
     
     def activate_dataset(self, dataset_id: str, db: Session) -> bool:
-        """Activate a dataset (make its profiles searchable)"""
+
         try:
             dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
             if not dataset:
@@ -430,6 +441,13 @@ class ETLService:
             dataset.status = "active"
             dataset.activated_date = datetime.utcnow()
             db.commit()
+            
+            if self.collection:
+                profile_ids = [p.id for p in db.query(Profile.id).filter(Profile.dataset_id == dataset_id).all()]
+                for profile_id in profile_ids:
+                    self._update_chroma_metadata(profile_id, True)
+
+
             print(f"Activated {profiles_updated} profiles from dataset {dataset.name}")
             return True
             
@@ -450,6 +468,11 @@ class ETLService:
             dataset.status = "inactive"
             dataset.deactivated_date = datetime.utcnow()
             db.commit()
+            if self.collection:
+                profile_ids = [p.id for p in db.query(Profile.id).filter(Profile.dataset_id == dataset_id).all()]
+                for profile_id in profile_ids:
+                    self._update_chroma_metadata(profile_id, False)
+
             print(f"Deactivated {profiles_updated} profiles from dataset {dataset.name}")
             return True
             
@@ -457,3 +480,102 @@ class ETLService:
             print(f"Error deactivating dataset {dataset_id}: {e}")
             db.rollback()
             return False
+    
+    
+    #chroma methods    
+    def _add_to_chroma(self, profile_data: Dict, search_text: str, embedding: List[float]) -> bool:
+        """Add a single profile's embedding to Chroma"""
+        if not self.collection:
+            return False
+        
+        try:
+            self.collection.upsert(
+                ids=[profile_data['id']],
+                embeddings=[embedding],
+                documents=[search_text],
+                metadatas=[{
+                    'name': profile_data['name'],
+                    'description': (profile_data.get('description') or '')[:1000],
+                    'resource_type': profile_data.get('resource_type', 'Unknown'),
+                    'category': profile_data.get('category', 'Unknown'),
+                    'dataset_id': profile_data.get('dataset_id', ''),
+                    'keywords': ','.join((profile_data.get('keywords') or [])[:20]),
+                    'is_active': True
+                }]
+            )
+            return True
+        except Exception as e:
+            print(f"Error adding to Chroma: {e}")
+            return False
+    
+    def _batch_add_to_chroma(self, profiles_data: List[Dict], search_texts: List[str], 
+                            embeddings: List[List[float]]) -> bool:
+        """Batch add profiles to Chroma"""
+        if not self.collection or not profiles_data:
+            return False
+        
+        try:
+            ids = [p['id'] for p in profiles_data]
+            metadatas = []
+            
+            for profile_data in profiles_data:
+                metadatas.append({
+                    'name': profile_data['name'],
+                    'description': (profile_data.get('description') or '')[:1000],
+                    'resource_type': profile_data.get('resource_type', 'Unknown'),
+                    'category': profile_data.get('category', 'Unknown'),
+                    'dataset_id': profile_data.get('dataset_id', ''),
+                    'keywords': ','.join((profile_data.get('keywords') or [])[:20]),
+                    'is_active': True
+                })
+            
+            self.collection.upsert(
+                ids=ids,
+                embeddings=embeddings,
+                documents=search_texts,
+                metadatas=metadatas
+            )
+            
+            print(f"Successfully added {len(profiles_data)} profiles to Chroma")
+            return True
+            
+        except Exception as e:
+            print(f"Error in batch add to Chroma: {e}")
+            return False
+    
+    def _update_chroma_metadata(self, profile_id: str, is_active: bool) -> bool:
+        """Update metadata for a profile in Chroma"""
+        if not self.collection:
+            return False
+        
+        try:
+            # Get current document
+            results = self.collection.get(ids=[profile_id], include=['metadatas'])
+            if results['ids']:
+                metadata = results['metadatas'][0]
+                metadata['is_active'] = is_active
+                
+                self.collection.update(
+                    ids=[profile_id],
+                    metadatas=[metadata]
+                )
+                return True
+            return False
+            
+        except Exception as e:
+            print(f"Error updating Chroma metadata: {e}")
+            return False
+    
+    def _delete_from_chroma(self, profile_ids: List[str]) -> bool:
+        """Delete profiles from Chroma"""
+        if not self.collection or not profile_ids:
+            return False
+        
+        try:
+            self.collection.delete(ids=profile_ids)
+            print(f"Deleted {len(profile_ids)} profiles from Chroma")
+            return True
+        except Exception as e:
+            print(f"Error deleting from Chroma: {e}")
+            return False
+    
