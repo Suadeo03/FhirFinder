@@ -164,3 +164,39 @@ class RedisQueryCache:
             print("Redis connection closed")
 
 
+    def set_feedback(self, key: str, value: str, expire_seconds: int = None):
+        """Store feedback data in Redis"""
+        if not self.is_connected():
+            return False
+        
+        try:
+            if expire_seconds:
+                self.client.set(key, value, ex=expire_seconds)
+            else:
+                self.client.set(key, value)
+            return True
+        except Exception as e:
+            print(f"Error setting Redis key {key}: {e}")
+            return False
+
+    def get_feedback(self, key: str):
+        """Get feedback data from Redis"""
+        if not self.is_connected():
+            return None
+        
+        try:
+            return self.client.get(key)
+        except Exception as e:
+            print(f"Error getting Redis key {key}: {e}")
+            return None
+
+    def exists_feedback(self, key: str):
+        """Check if feedback key exists"""
+        if not self.is_connected():
+            return False
+        
+        try:
+            return self.client.exists(key) > 0
+        except Exception as e:
+            print(f"Error checking Redis key {key}: {e}")
+            return False

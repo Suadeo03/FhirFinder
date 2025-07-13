@@ -2,6 +2,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from models.database.models import Base
+from models.database.feedback_models import Base as FeedbackBase
 import os
 from sqlalchemy import text
 
@@ -21,6 +22,7 @@ def create_tables():
 
 
     Base.metadata.create_all(bind=engine)
+    FeedbackBase.metadata.create_all(bind=engine)
     print("Database tables created successfully")
 
 def get_db():

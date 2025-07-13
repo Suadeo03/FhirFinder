@@ -23,3 +23,15 @@ docker-compose logs postgres
 
 # Connect via psql
 docker exec -it fhir_postgres psql -U fhir_user -d fhir_registry
+
+# Start all services
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs chroma
+
+# Stop and remove volumes (clears all data)
+docker-compose down 

@@ -262,23 +262,19 @@ class SearchService:
             if not search_results['ids'] or not search_results['ids'][0]:
                 return []
             
-            # Get profile IDs and scores from Chroma results
             profile_ids = search_results['ids'][0]
             distances = search_results['distances'][0]
             
-            # Convert distances to similarity scores
             similarity_scores = [1 / (1 + distance) for distance in distances]
             
-            # Get full profile data from PostgreSQL
+
             profiles = db.query(Profile).filter(
                 Profile.id.in_(profile_ids),
                 Profile.is_active == True
             ).all()
             
-            # Create lookup dictionary
             profile_dict = {p.id: p for p in profiles}
             
-            # Combine results maintaining order from Chroma
             results = []
             for i, profile_id in enumerate(profile_ids):
                 if profile_id in profile_dict:
@@ -319,10 +315,9 @@ class SearchService:
             
         results_map = {}
         
-        # Semantic search component
         if semantic_weight > 0 and self.collection:
             try:
-                # Correct parameter order:
+
                 semantic_results = self.semantic_search(query, top_k, db, filters)
                 for result in semantic_results:
                     results_map[result['id']] = {
@@ -332,8 +327,7 @@ class SearchService:
                     }
             except Exception as e:
                 print(f"Semantic search failed in hybrid mode: {e}")
-        
-        # Traditional text search component
+
         if semantic_weight < 1.0:
             try:
                 text_query = db.query(Profile).filter(
@@ -443,6 +437,16 @@ class SearchService:
                     'fhir_searchable_text': profile.fhir_searchable_text or []
                 })
             
+            """if results:
+                for res in results:
+                    create_performance_log(
+                        profile_id=res['id'],
+                        query_text=query,
+                        profile_name=res['name'],
+                        profile_oid=res['oid'],
+                        keywords=res['keywords'],
+                        db=db
+                    )    """
             return results
             
         except Exception as e:

@@ -1,6 +1,6 @@
 // Tab switching functionality
 let currentTab = 'resources';
-
+let currentResult = null;
 function switchTab(tabName) {
  
     document.querySelectorAll('.tab-content').forEach(content => {
@@ -103,6 +103,7 @@ async function lookupBtn() {
         showResult(`<div class="loading">Searching ${currentTab} dataset...</div>`);
         
         const result = await newQuery.getQuery(text, currentTab);
+        currentResult = result;
 
         function hasResults(result) {
             if (!result) { return false; }
@@ -116,10 +117,12 @@ async function lookupBtn() {
             showResult(displayCodeResult(result, currentTab));
         } else {
             showResult(`<div class="error">No results found in ${currentTab} dataset</div>`);
+            currentResult = null;
         }
     } catch (error) {
         console.error('Frontend error:', error);
         showResult(`<div class="error">Error searching ${currentTab}: ${error.message}</div>`);
+        currentResult = null;
     } finally {
         btn.disabled = false; 
     }
@@ -231,7 +234,7 @@ function displayCodeResult(result, dataset) {
     </div>`;
 }
 
-// Helper function to escape HTML and prevent XSS
+
 function escapeHtml(text) {
     if (typeof text !== 'string') {
         return String(text);
@@ -267,10 +270,67 @@ function clearResult() {
     });
 }
 
+class FeedbackService {
+    constructor(baseUrl = 'http://localhost:8000') {
+        this.baseUrl = baseUrl;
+    }
+ 
+    async sendFeedback(query, profile_id, feedbackType, original_score, contextInfo) {
+        try {
+      
+            const response = await fetch(`${this.baseUrl}/api/v1/feedback/record`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                mode: 'cors',
+                body: JSON.stringify({
+                    query: query,
+                    profile_id: profile_id,
+                    feedback_type: feedbackType,
+                    session_id: 'default-session',
+                    user_id: 'default-user',
+                    original_score: original_score || 0.0,
+                    context_info: contextInfo || {},
+                })
+            });
 
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`API Error: ${response.status} - ${errorText}`);
+                throw new Error(`API Error: ${response.status} - ${errorText}`);
+            }
 
-function testRawUMLS() {
-    showResult('<div class="loading">🔄 Adding to use case...</div>');
+            return await response.json();
+        } catch (error) {
+            console.error('Error sending feedback:', error);
+            throw error;
+        }
+    }
+}
+
+function positiveResponse() {
+    if (!currentResult) {
+        showResult('<div class="error">No search result available for feedback.</div>');
+        return;
+    }
+    const query = getCurrentQuery();
+    const profileId = currentResult.results[0].id;
+    const originalScore = currentResult.results[0].similarity_score || 0.0;
+    const context_info = currentResult.results[0].use_contexts[0] || '';
+    const feedbackService = new FeedbackService();
+
+    feedbackService.sendFeedback(query, 100, 'positive', originalScore, context_info)
+        .then(response => {
+            console.log('Feedback sent successfully:', response);
+            showResult('<div class="success">Thank you for your positive feedback!</div>');
+        })
+        .catch(error => {
+            console.error('Error sending positive feedback:', error);
+            showResult('<div class="error">Failed to send positive feedback.</div>');
+        });
+
 }
 
 function loadCode() {

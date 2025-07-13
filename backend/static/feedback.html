@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search with Continuous Learning</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 64rem;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        .header {
+            margin-bottom: 2rem;
+        }
+
+        .title {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .search-button {
+            padding: 0.75rem 1.5rem;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        .search-button:hover:not(:disabled) {
+            background-color: #2563eb;
+        }
+
+        .search-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .session-info {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .session-code {
+            background-color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+        }
+
+        .results-section {
+            margin-top: 2rem;
+        }
+
+        .results-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .result-card {
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .result-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .result-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .score-container {
+            text-align: right;
+        }
+
+        .score-main {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .score-icon {
+            color: #fbbf24;
+            fill: #fbbf24;
+        }
+
+        .score-details {
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+
+        .score-original {
+            color: #6b7280;
+        }
+
+        .score-positive {
+            color: #059669;
+        }
+
+        .score-negative {
+            color: #dc2626;
+        }
+
+        .result-description {
+            color: #374151;
+            margin-bottom: 0.75rem;
+        }
+
+        .keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .keyword {
+            padding: 0.25rem 0.5rem;
+            background-color: #dbeafe;
+            color: #1e40af;
+            font-size: 0.75rem;
+            border-radius: 9999px;
+        }
+
+        .feedback-boost {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .boost-positive {
+            color: #059669;
+        }
+
+        .boost-negative {
+            color: #dc2626;
+        }
+
+        .feedback-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .feedback-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .feedback-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .feedback-button {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .feedback-button:not(.submitted):hover {
+            transform: translateY(-1px);
+        }
+
+        .feedback-positive {
+            color: #6b7280;
+        }
+
+        .feedback-positive:hover:not(.submitted) {
+            background-color: #f0fdf4;
+            color: #059669;
+        }
+
+        .feedback-positive.submitted {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .feedback-negative {
+            color: #6b7280;
+        }
+
+        .feedback-negative:hover:not(.submitted) {
+            background-color: #fef2f2;
+            color: #dc2626;
+        }
+
+        .feedback-negative.submitted {
+            background-color: #fecaca;
+            color: #991b1b;
+        }
+
+        .result-id {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        .info-panel {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: #eff6ff;
+            border-radius: 0.5rem;
+        }
+
+        .info-header {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+
+        .info-title {
+            font-weight: 500;
+            color: #1e3a8a;
+            margin-bottom: 0.25rem;
+        }
+
+        .info-text {
+            font-size: 0.875rem;
+            color: #1e40af;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 3rem 0;
+            color: #6b7280;
+        }
+
+        .no-results-subtitle {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Search with Continuous Learning</h1>
+            <p class="subtitle">
+                Your feedback helps improve search results for everyone. Results are automatically 
+                adjusted based on user feedback patterns.
+            </p>
+            
+            <!-- Search Interface -->
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    id="searchInput"
+                    placeholder="Search for FHIR profiles..."
+                    class="search-input"
+                >
+                <button id="searchButton" class="search-button">Search</button>
+            </div>
+            
+            <!-- Session Info -->
+            <div class="session-info">
+                Session ID: <span class="session-code" id="sessionId"></span>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div id="resultsSection" class="results-section hidden">
+            <h2 class="results-title" id="resultsTitle">Search Results</h2>
+            <div id="resultsContainer"></div>
+            
+            <!-- Info Panel -->
+            <div class="info-panel">
+                <div class="info-header">
+                    <i data-lucide="alert-circle" style="color: #3b82f6; margin-top: 0.125rem;"></i>
+                    <div>
+                        <h4 class="info-title">How Feedback Improves Search</h4>
+                        <p class="info-text">
+                            Your feedback is processed in real-time and helps adjust future search results. 
+                            Profiles with positive feedback are boosted, while those with negative feedback 
+                            are demoted for similar queries. The system also learns to generate better 
+                            embeddings based on feedback patterns.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- No Results -->
+        <div id="noResults" class="no-results hidden">
+            <p>No results found</p>
+            <p class="no-results-subtitle">Try a different search term</p>
+        </div>
+    </div>
+
+    <script>
+        // Application state
+        let sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        let feedbackSubmitted = new Set();
+        let currentQuery = '';
+
+        // Mock search results
+        const mockResults = [
+            {
+                id: 1,
+                name: "Patient Demographics Profile",
+                description: "Standard patient demographic information profile for healthcare systems",
+                resource_type: "Patient",
+                category: "Demographics",
+                similarity_score: 0.95,
+                original_score: 0.87,
+                adjustment_factor: 1.09,
+                feedback_boost: "positive",
+                keywords: ["patient", "demographics", "healthcare"]
+            },
+            {
+                id: 2,
+                name: "Clinical Observation Profile",
+                description: "Profile for recording clinical observations and measurements",
+                resource_type: "Observation",
+                category: "Clinical",
+                similarity_score: 0.82,
+                original_score: 0.82,
+                adjustment_factor: 1.0,
+                feedback_boost: null,
+                keywords: ["observation", "clinical", "measurement"]
+            },
+            {
+                id: 3,
+                name: "Medication Request Profile",
+                description: "Profile for medication prescriptions and requests",
+                resource_type: "MedicationRequest",
+                category: "Pharmacy",
+                similarity_score: 0.71,
+                original_score: 0.85,
+                adjustment_factor: 0.84,
+                feedback_boost: "negative",
+                keywords: ["medication", "prescription", "pharmacy"]
+            }
+        ];
+
+        // DOM elements
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const sessionIdElement = document.getElementById('sessionId');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsTitle = document.getElementById('resultsTitle');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const noResults = document.getElementById('noResults');
+
+        // Initialize
+        function init() {
+            sessionIdElement.textContent = sessionId;
+            
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleSearch();
+                }
+            });
+            
+            searchButton.addEventListener('click', handleSearch);
+        }
+
+        // Handle search
+        function handleSearch() {
+            const query = searchInput.value.trim();
+            if (!query) return;
+
+            currentQuery = query;
+            searchButton.disabled = true;
+            searchButton.textContent = 'Searching...';
+
+            // Simulate API call
+            setTimeout(() => {
+                displayResults(mockResults);
+                searchButton.disabled = false;
+                searchButton.textContent = 'Search';
+            }, 1000);
+        }
+
+        // Display search results
+        function displayResults(results) {
+            if (results.length === 0) {
+                resultsSection.classList.add('hidden');
+                noResults.classList.remove('hidden');
+                return;
+            }
+
+            noResults.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+            resultsTitle.textContent = `Search Results (${results.length})`;
+
+            resultsContainer.innerHTML = '';
+            results.forEach((result, index) => {
+                resultsContainer.appendChild(createResultCard(result, index));
+            });
+
+            // Initialize Lucide icons
+            lucide.createIcons();
+        }
+
+        // Create result card
+        function createResultCard(result, index) {
+            const card = document.createElement('div');
+            card.className = 'result-card';
+
+            card.innerHTML = `
+                <div class="result-header">
+                    <div style="flex: 1;">
+                        <h3 class="result-title">${result.name}</h3>
+                        <div class="result-meta">
+                            <span>#${index + 1}</span>
+                            <span>${result.resource_type}</span>
+                            <span>${result.category}</span>
+                        </div>
+                    </div>
+                    <div class="score-container">
+                        ${createScoreIndicator(result)}
+                    </div>
+                </div>
+
+                <p class="result-description">${result.description}</p>
+
+                <div class="keywords">
+                    ${result.keywords.map(keyword => 
+                        `<span class="keyword">${keyword}</span>`
+                    ).join('')}
+                </div>
+
+                ${createFeedbackBoostIndicator(result)}
+
+                <div class="feedback-section">
+                    <div class="feedback-controls">
+                        <span class="feedback-label">Was this result helpful?</span>
+                        
+                        <button 
+                            class="feedback-button feedback-positive" 
+                            data-profile-id="${result.id}" 
+                            data-feedback-type="positive"
+                            data-original-score="${result.original_score || result.similarity_score}"
+                        >
+                            <i data-lucide="thumbs-up"></i>
+                            <span>Yes</span>
+                            <span class="feedback-check hidden">✓</span>
+                        </button>
+                        
+                        <button 
+                            class="feedback-button feedback-negative" 
+                            data-profile-id="${result.id}" 
+                            data-feedback-type="negative"
+                            data-original-score="${result.original_score || result.similarity_score}"
+                        >
+                            <i data-lucide="thumbs-down"></i>
+                            <span>No</span>
+                            <span class="feedback-check hidden">✓</span>
+                        </button>
+                    </div>
+
+                    <div class="result-id">Result ID: ${result.id}</div>
+                </div>
+            `;
+
+            // Add feedback event listeners
+            const feedbackButtons = card.querySelectorAll('.feedback-button');
+            feedbackButtons.forEach(button => {
+                button.addEventListener('click', handleFeedback);
+            });
+
+            return card;
+        }
+
+        // Create score indicator
+        function createScoreIndicator(result) {
+            const hasAdjustment = result.adjustment_factor && result.adjustment_factor !== 1.0;
+            
+            let html = `
+                <div class="score-main">
+                    <i data-lucide="star" class="score-icon"></i>
+                    <span style="font-weight: 500;">${(result.similarity_score * 100).toFixed(1)}%</span>
+                </div>
+            `;
+
+            if (hasAdjustment) {
+                const adjustmentClass = result.adjustment_factor > 1 ? 'score-positive' : 'score-negative';
+                const adjustmentSign = result.adjustment_factor > 1 ? '+' : '';
+                
+                html += `
+                    <div class="score-details">
+                        <span class="score-original">Original: ${(result.original_score * 100).toFixed(1)}%</span>
+                        <span class="${adjustmentClass}" style="margin-left: 0.5rem;">
+                            (${adjustmentSign}${((result.adjustment_factor - 1) * 100).toFixed(1)}%)
+                        </span>
+                    </div>
+                `;
+            }
+
+            return html;
+        }
+
+        // Create feedback boost indicator
+        function createFeedbackBoostIndicator(result) {
+            if (result.feedback_boost === 'positive') {
+                return `
+                    <div class="feedback-boost boost-positive">
+                        <i data-lucide="trending-up"></i>
+                        <span>Boosted by positive feedback</span>
+                    </div>
+                `;
+            } else if (result.feedback_boost === 'negative') {
+                return `
+                    <div class="feedback-boost boost-negative">
+                        <i data-lucide="trending-down"></i>
+                        <span>Adjusted due to negative feedback</span>
+                    </div>
+                `;
+            }
+            return '';
+        }
+
+        // Handle feedback submission
+        function handleFeedback(event) {
+            const button = event.currentTarget;
+            const profileId = button.dataset.profileId;
+            const feedbackType = button.dataset.feedbackType;
+            const originalScore = parseFloat(button.dataset.originalScore);
+
+            const feedbackKey = `${profileId}_${feedbackType}`;
+            
+            if (feedbackSubmitted.has(feedbackKey)) {
+                return; // Already submitted
+            }
+
+            submitFeedback(profileId, feedbackType, originalScore, button);
+        }
+
+        // Submit feedback to API
+        async function submitFeedback(profileId, feedbackType, originalScore, button) {
+            try {
+                const feedbackData = {
+                    query: currentQuery,
+                    profile_id: parseInt(profileId),
+                    feedback_type: feedbackType,
+                    session_id: sessionId,
+                    user_id: 'demo_user',
+                    original_score: originalScore,
+                    context_info: {
+                        search_timestamp: new Date().toISOString(),
+                        user_agent: navigator.userAgent
+                    }
+                };
+
+                console.log('Submitting feedback:', feedbackData);
+
+                // In real implementation, you would call your feedback API:
+                // const response = await fetch('/api/feedback/record', {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify(feedbackData)
+                // });
+
+                // Simulate successful submission
+                const feedbackKey = `${profileId}_${feedbackType}`;
+                feedbackSubmitted.add(feedbackKey);
+
+                // Update button appearance
+                button.classList.add('submitted');
+                button.disabled = true;
+                const checkmark = button.querySelector('.feedback-check');
+                if (checkmark) {
+                    checkmark.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
+                alert('Failed to submit feedback. Please try again.');
+            }
+        }
+
+        // Initialize the application
+        init();
+    </script>
+</body>
+</html>

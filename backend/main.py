@@ -10,7 +10,7 @@ import os
 from api.v1.endpoints.search import router as search_router
 from api.v1.endpoints.datasets import router as datasets_router
 from api.v1.endpoints.query_performance import router as queryperformance_router
-
+from api.v1.endpoints.feedback import router as feedback_router
 from config.database import init_database, get_db
 from config.redis import RedisQueryCache
 from services.search_service import SearchService
@@ -38,6 +38,7 @@ app.add_middleware(
 app.include_router(search_router, prefix="/api/v1", tags=["search"])
 app.include_router(datasets_router, prefix="/api/v1", tags=["datasets"])
 app.include_router(queryperformance_router, prefix="/api/v1", tags=["performance"])
+app.include_router(feedback_router, prefix="/api/v1", tags=["feedback"])
 
 static_dir = "static"
 if os.path.exists(static_dir):

@@ -96,14 +96,13 @@ class QueryPerformance(Base):
     profile_id = Column(String, nullable=False)
     query_text = Column(String(500), nullable=False)
     query_date = Column(DateTime, default=datetime.utcnow)
-    profile_name = Column(String(500), nullable=False)  # Name of the profile
+    profile_name = Column(String(500), nullable=False)  
     profile_oid = Column(String(75), nullable=False)  
-    profile_score = Column(Float, nullable=False)  # Similarity score with profile
-    context_score = Column(Float, nullable=False)  # Similarity score with context
-    combined_score = Column(Float, nullable=False)  # Combined score
-    match_reasons = Column(Text)  # Reasons for the match, e.g. "keyword match", "context match"
-    keywords = Column(JSON)  # Keywords used in the query
-
+    profile_score = Column(Float, nullable=False)  
+    context_score = Column(Float, nullable=False)  
+    combined_score = Column(Float, nullable=False) 
+    match_reasons = Column(Text)  
+    keywords = Column(JSON)  
 
     def __repr__(self):
         return f"<ProcessingJob(id='{self.id}', type='{self.job_type}', status='{self.status}')>"
