@@ -182,3 +182,5 @@ class ChromaConfig:
                 
         except Exception as e:
             print(f"❌ Error clearing collection: {e}")
+new = ChromaConfig()
+new.clear_collection('fhir_profiles')

@@ -17,7 +17,7 @@ class UserFeedback(Base):
     id = Column(Integer, primary_key=True, index=True) 
     query_text = Column(Text, nullable=False, index=True)
     query_normalized = Column(Text, nullable=False, index=True)  # Lowercased, trimmed
-    profile_id = Column(Integer, nullable=False, index=True)
+    profile_id = Column(String(255), nullable=False, index=True)
     feedback_type = Column(String(20), nullable=False)  # 'positive', 'negative', 'neutral'
     feedback_score = Column(Float, default=0.0)  # Optional numerical score
     feedback_comment = Column(Text, nullable=True)  # Optional user comment
@@ -47,7 +47,7 @@ class SearchQualityMetrics(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     query_normalized = Column(Text, nullable=False, index=True)
-    profile_id = Column(Integer, nullable=False, index=True)
+    profile_id = Column(String(255), nullable=False, index=True) # oid
     base_semantic_score = Column(Float, default=0.0)
     base_text_score = Column(Float, default=0.0)
     base_hybrid_score = Column(Float, default=0.0)

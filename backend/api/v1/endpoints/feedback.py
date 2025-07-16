@@ -6,16 +6,16 @@ from pydantic import BaseModel
 from typing import Optional, Dict, List
 from datetime import datetime
 from config.database import get_db
-from services.training_service import SearchQualityMetrics
+from services.training_service import TrainingFeedback
 
 router = APIRouter()
 
-feedback_service = SearchQualityMetrics()
+feedback_service = TrainingFeedback()
 
 # Pydantic models for API
 class FeedbackRequest(BaseModel):
     query: str
-    profile_id: int
+    profile_id: str
     feedback_type: str  # 'positive', 'negative', 'neutral'
     session_id: str
     user_id: Optional[str] = None
@@ -171,7 +171,7 @@ async def get_feedback_stats(
     Get feedback statistics for monitoring search quality
     """
     try:
-        stats = search_service.get_feedback_stats(db, days)
+        stats = feedback_service.get_feedback_stats_simple(db, days)
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get feedback stats: {str(e)}")

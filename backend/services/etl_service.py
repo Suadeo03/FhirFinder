@@ -113,7 +113,7 @@ class ETLService:
         if not profile['id']:
             profile['id'] = f"HL7_{uuid.uuid4().hex[:8]}_{row_index}"
 
-        profile['oid'] = self._extract_field(row, ['oid']) or "No OID available"
+        profile['oid'] = self._extract_field(row, ['oid']) or f"OID_{uuid.uuid4().hex[:8]}_{row_index}"
 
         profile['name'] = self._extract_field(row, ['name'])
         if not profile['name']:

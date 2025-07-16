@@ -38,7 +38,34 @@ def init_database():
 
     try:
         create_tables()
+     
         print("Database initialized successfully")
+
     except Exception as e:
         print(f"Error initializing database: {e}")
 
+
+def clear_postgres_data():
+    """Clear all data from PostgreSQL tables"""
+    
+
+    
+    try:
+        with engine.connect() as connection:
+            # Delete all feedback data
+            connection.execute(text("DELETE FROM profiles CASCADE"))
+            connection.execute(text("DELETE FROM datasets CASCADE"))
+            connection.execute(text("DELETE FROM processing_jobs CASCADE"))
+            connection.execute(text("DELETE FROM user_feedback CASCADE"))
+            connection.execute(text("DELETE FROM search_quality_metrics CASCADE"))
+            connection.commit()
+            print(f"✅ Deleted records from user_feedback")
+            
+            # Reset sequence
+            connection.execute(text("ALTER SEQUENCE user_feedback_id_seq RESTART WITH 1"))
+            connection.commit()
+            print("✅ Reset user_feedback ID sequence")
+
+            
+    except Exception as e:
+        print(f"❌ Error clearing PostgreSQL data: {e}")

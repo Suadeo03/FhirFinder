@@ -8,6 +8,7 @@ from services.performance_log import create_performance_log
 from models.database.models import Profile, Dataset
 from config.redis import RedisQueryCache
 from config.chroma import ChromaConfig
+import uuid
 
 
 class SearchService:   
@@ -293,7 +294,7 @@ class SearchService:
                         'resource_url': profile.resource_url,
                         'similarity_score': similarity_scores[i],
                         'dataset_id': profile.dataset_id,
-                        'oid': profile.oid,
+                        'oid': profile.oid or "",
                         'use_contexts': profile.use_contexts or [],
                         'fhir_resource': profile.fhir_resource or {},
                         'fhir_searchable_text': profile.fhir_searchable_text or []
