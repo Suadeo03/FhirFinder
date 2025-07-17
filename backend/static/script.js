@@ -275,7 +275,7 @@ class FeedbackService {
         this.baseUrl = baseUrl;
     }
  
-    async sendFeedback(query, profile_id, feedbackType, original_score, contextInfo) {
+    async sendFeedback(query, oid_id, feedbackType, original_score, contextInfo) {
         try {
       
             const response = await fetch(`${this.baseUrl}/api/v1/feedback/record`, {
@@ -287,7 +287,7 @@ class FeedbackService {
                 mode: 'cors',
                 body: JSON.stringify({
                     query: query,
-                    profile_id: profile_id,
+                    profile_id: oid_id,
                     feedback_type: feedbackType,
                     session_id: 'default-session',
                     user_id: 'default-user',
@@ -311,26 +311,50 @@ class FeedbackService {
 }
 
 function positiveResponse() {
+    sendFeedbackResponse('positive');
+}
+
+function negativeResponse() {
+    sendFeedbackResponse('negative');
+}
+
+
+async function sendFeedbackResponse(feedbackType) {
     if (!currentResult) {
         showResult('<div class="error">No search result available for feedback.</div>');
         return;
     }
+    
     const query = getCurrentQuery();
-    const profileId = currentResult.results[0].id;
+    const oid_id = currentResult.results[0].oid;
     const originalScore = currentResult.results[0].similarity_score || 0.0;
     const context_info = currentResult.results[0].use_contexts[0] || '';
     const feedbackService = new FeedbackService();
-
-    feedbackService.sendFeedback(query, 100, 'positive', originalScore, context_info)
-        .then(response => {
-            console.log('Feedback sent successfully:', response);
-            showResult('<div class="success">Thank you for your positive feedback!</div>');
-        })
-        .catch(error => {
-            console.error('Error sending positive feedback:', error);
-            showResult('<div class="error">Failed to send positive feedback.</div>');
-        });
-
+    
+    // Customize messages based on feedback type
+    const messages = {
+        positive: {
+            success: 'Thank you for your positive feedback!',
+            error: 'Failed to send positive feedback.'
+        },
+        negative: {
+            success: 'Thank you for your negative feedback!',
+            error: 'Failed to send negative feedback.'
+        }
+    };
+    
+    try {
+        const response = await feedbackService.sendFeedback(
+            query, oid_id, feedbackType, originalScore, context_info
+        );
+        
+        console.log('Feedback sent successfully:', response);
+        showResult(`<div class="success">${messages[feedbackType].success}</div>`);
+        
+    } catch (error) {
+        console.error(`Error sending ${feedbackType} feedback:`, error);
+        showResult(`<div class="error">${messages[feedbackType].error}</div>`);
+    }
 }
 
 function loadCode() {

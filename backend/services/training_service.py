@@ -65,28 +65,43 @@ class TrainingFeedback:
         except Exception as e:
             print(f"Error recording user feedback: {e}")
 
-    def _update_search_quality_metrics(self, query: str, profile_id: str,feedback_type: str, db: Session):
-
+    def _update_search_quality_metrics(self, query: str, profile_id: str, feedback_type: str, db: Session):
         try:
             query_normalized = query.lower().strip()
             
-            # Using merge() for upsert-like behavior
-            quality_metric = db.merge(SearchQualityMetrics(
-                query_normalized=query_normalized,
-                profile_id=profile_id,
-                positive_feedback_count=0,
-                negative_feedback_count=0,
-                total_feedback_count=0,
-                feedback_ratio=0.0
-            ))
+            # First, try to get existing record
+            quality_metric = db.query(SearchQualityMetrics).filter(
+                SearchQualityMetrics.query_normalized == query_normalized,
+                SearchQualityMetrics.profile_id == str(profile_id)  # Ensure it's a string
+            ).first()
             
-        
-
+            # If doesn't exist, create new one
+            if not quality_metric:
+                quality_metric = SearchQualityMetrics(
+                    query_normalized=query_normalized,
+                    profile_id=str(profile_id),  
+                    positive_feedback_count=0,
+                    negative_feedback_count=0,
+                    neutral_feedback_count=0,
+                    total_feedback_count=0,
+                    feedback_ratio=0.0
+                )
+                db.add(quality_metric)
+            
             # Update counters
             if feedback_type == 'positive':
                 quality_metric.positive_feedback_count += 1
             elif feedback_type == 'negative':
                 quality_metric.negative_feedback_count += 1
+            elif feedback_type == 'neutral':
+                quality_metric.neutral_feedback_count += 1
+            
+            # Update total count
+            quality_metric.total_feedback_count = (
+                quality_metric.positive_feedback_count + 
+                quality_metric.negative_feedback_count + 
+                quality_metric.neutral_feedback_count
+            )
             
             # Recalculate quality score
             total_feedback = quality_metric.positive_feedback_count + quality_metric.negative_feedback_count
@@ -96,7 +111,7 @@ class TrainingFeedback:
             
             quality_metric.last_updated = datetime.utcnow()
             db.commit()
-        
+            
         except Exception as e:
             db.rollback()
             print(f"Error updating search quality metrics: {e}")

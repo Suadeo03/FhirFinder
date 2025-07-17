@@ -73,6 +73,7 @@ class SearchQualityMetrics(Base):
         Index('idx_quality_query_profile', 'query_normalized', 'profile_id', unique=True),
         Index('idx_quality_feedback_ratio', 'feedback_ratio'),
         Index('idx_quality_confidence', 'confidence_score'),
+    
     )
 
 class SearchSession(Base):
