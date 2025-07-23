@@ -33,14 +33,12 @@ class SearchService:
                     print("Chroma connection unstable")
             else:
                 print("Chroma collection not available - falling back to traditional search only")
-                
+
         except Exception as e:
             print(f"Error initializing Chroma: {e}")
             self.collection = None
             self.chroma_config = None
-        cache = RedisQueryCache()
-        if cache.is_connected():        
-            print("Redis client initialized successfully")
+
     """ 
     def search(self, query: str, limit: int = 5, db: Session = None) -> List[Dict]:
 
@@ -231,15 +229,26 @@ class SearchService:
 
     """
     def semantic_search(self, query: str, top_k: int = 10, db: Session = None, filters: Optional[Dict] = None) -> List[Dict]:
-        """
-        Perform semantic search using Chroma vectors + PostgreSQL metadata
-        """
+       
         if not self.collection:
             raise ValueError("Chroma collection not available for search")
         
         if not db:
             raise ValueError("Database session required")
         
+        redis_client = RedisQueryCache()
+
+        if redis_client.is_connected():
+            query_normalized = query.lower().strip()
+            
+            cached_results = redis_client.get_cached_search(query_normalized)
+            if cached_results:
+                print(f"Cache hit for query: {query}")
+                # Apply feedback adjustments to cached results
+                return cached_results
+            else:
+                print(f"Cache miss for query: {query}")
+            
 
         try:
             # Generate embedding for the search query

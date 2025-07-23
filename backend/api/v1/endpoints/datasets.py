@@ -11,9 +11,11 @@ import shutil
 from config.database import get_db
 from models.database.models import Dataset, Profile, ProcessingJob
 from services.etl_service import ETLService
+from services.elt_form_service import ETL_Form_Service
 
 router = APIRouter()
 etl_service = ETLService()
+elt_form_service = ETL_Form_Service()
 
 # Pydantic models for API
 class DatasetResponse(BaseModel):
@@ -144,6 +146,40 @@ async def download_dataset(
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
 @router.post("/datasets/{dataset_id}/process", response_model=ProcessResponse)
+async def process_dataset(dataset_id: str, db: Session = Depends(get_db)):
+    """Process an uploaded dataset"""
+    try:
+
+        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        if dataset.status not in ["uploaded", "failed"]:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Dataset is in '{dataset.status}' status and cannot be processed"
+            )
+ 
+        success = etl_service.process_dataset(dataset_id, db)
+        
+        if success:
+            return ProcessResponse(
+                success=True,
+                message=f"Dataset processed successfully. {dataset.record_count} profiles loaded.",
+                dataset_id=dataset_id
+            )
+        else:
+            return ProcessResponse(
+                success=False,
+                message=f"Processing failed: {dataset.error_message}",
+                dataset_id=dataset_id
+            )
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+    
+
+@router.post("/datasets/{dataset_id}/form_process", response_model=ProcessResponse)
 async def process_dataset(dataset_id: str, db: Session = Depends(get_db)):
     """Process an uploaded dataset"""
     try:
