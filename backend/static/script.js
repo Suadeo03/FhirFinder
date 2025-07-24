@@ -47,7 +47,7 @@ class FhirTextQuery {
                     endpoint = '/api/v1/parameters/';
                     break;
                 case 'assessments':
-                    endpoint = '/api/v1/form/';
+                    endpoint = '/api/v1/form/lookup/';
                     break;
                 case 'mapping':
                     endpoint = '/api/v1/mapping/';

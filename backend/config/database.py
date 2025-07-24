@@ -2,6 +2,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from models.database.models import Base
+from models.database.form_model import Base as FormBase
 from models.database.feedback_models import Base as FeedbackBase
 import os
 from sqlalchemy import text
@@ -23,6 +24,7 @@ def create_tables():
 
     Base.metadata.create_all(bind=engine)
     FeedbackBase.metadata.create_all(bind=engine)
+    FormBase.metadata.create_all(bind=engine)
     print("Database tables created successfully")
 
 def get_db():
@@ -37,6 +39,7 @@ def get_db():
 def init_database():
 
     try:
+        clear_postgres_data()
         create_tables()
      
         print("Database initialized successfully")
@@ -58,6 +61,11 @@ def clear_postgres_data():
             connection.execute(text("DELETE FROM processing_jobs CASCADE"))
             connection.execute(text("DELETE FROM user_feedback CASCADE"))
             connection.execute(text("DELETE FROM search_quality_metrics CASCADE"))
+            connection.execute(text("DELETE FROM formsets CASCADE"))
+            connection.execute(text("DELETE FROM forms CASCADE"))
+            connection.execute(text("DELETE FROM form_processing_jobs CASCADE"))
+
+
             connection.commit()
             print(f"✅ Deleted records from user_feedback")
             

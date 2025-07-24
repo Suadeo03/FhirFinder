@@ -15,7 +15,6 @@ from services.elt_form_service import ETL_Form_Service
 
 router = APIRouter()
 etl_service = ETLService()
-elt_form_service = ETL_Form_Service()
 
 # Pydantic models for API
 class DatasetResponse(BaseModel):
