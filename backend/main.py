@@ -12,6 +12,7 @@ from api.v1.endpoints.datasets import router as datasets_router
 from api.v1.endpoints.query_performance import router as queryperformance_router
 from api.v1.endpoints.feedback import router as feedback_router
 from api.v1.endpoints.formsets import router as formsets_router
+from api.v1.endpoints.formLookup import router as formlookup_router
 from config.database import init_database, get_db
 from config.redis import RedisQueryCache
 from services.search_service import SearchService
@@ -41,6 +42,7 @@ app.include_router(datasets_router, prefix="/api/v1", tags=["datasets"])
 app.include_router(queryperformance_router, prefix="/api/v1", tags=["performance"])
 app.include_router(feedback_router, prefix="/api/v1", tags=["feedback"])
 app.include_router(formsets_router, prefix="/api/v1", tags=["formsets"])
+app.include_router(formlookup_router, prefix="/api/v1", tags=["formlookup"])
 static_dir = "static"
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
