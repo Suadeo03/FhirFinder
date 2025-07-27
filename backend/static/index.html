@@ -15,10 +15,9 @@
         <div class="tab-container">
             <!-- Tab Navigation -->
             <div class="tab-nav">
-                <button class="tab-button active" onclick="switchTab('resources')">FHIR Resources</button>
-                <button class="tab-button" onclick="switchTab('search')">FHIR Search</button>
-                <button class="tab-button" onclick="switchTab('form')">Form</button>
-                <button class="tab-button" onclick="switchTab('mapping')">V2 to FHIR</button>
+                <button class="tab-button active" onclick="switchTab('resources', event)">FHIR Resources</button>
+                <button class="tab-button" onclick="switchTab('form', event)">Form</button>
+                <button class="tab-button" onclick="switchTab('mapping', event)">V2 to FHIR</button>
             </div>
 
             <!-- FHIR Resources Tab -->
