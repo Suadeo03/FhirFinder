@@ -39,7 +39,7 @@ def get_db():
 def init_database():
 
     try:
-        clear_postgres_data()
+ 
         create_tables()
      
         print("Database initialized successfully")

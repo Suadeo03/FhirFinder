@@ -265,11 +265,11 @@ class ETL_Form_Service:
                     loinc_answer=form_dict.get('loinc_answer', ''),
                     loinc_concept=form_dict.get('loinc_concept', ''),
                     snomed_code_ct=form_dict.get('snomed_code_ct', ''),
-                    formset_id=formset_id,  # Use correct field name
-                    is_active=False  # Default to inactive
+                    formset_id=formset_id, 
+                    is_active=False  
                 )
                 
-                # Check if exists and update or create new
+                
                 existing = db.query(Form).filter(Form.id == form_dict['id']).first()
                 if existing:
                     # Update existing form
@@ -350,9 +350,9 @@ class ETL_Form_Service:
             if not formset:
                 raise ValueError(f"Formset {formset_id} not found")
             
-            # Update forms to inactive
+           
             forms_updated = db.query(Form).filter(
-                Form.formset_id == formset_id  # Use correct field name
+                Form.formset_id == formset_id  
             ).update({"is_active": False})
             
             formset.status = "inactive"
@@ -389,7 +389,7 @@ class ETL_Form_Service:
                     'screening_tool': (form_data.get('screening_tool') or '')[:1000],
                     'question': form_data.get('question', 'Unknown'),
                     'answer_concept': form_data.get('answer_concept', 'Unknown'),
-                    'formset_id': form_data.get('formset_id', ''),  # Use correct field name
+                    'formset_id': form_data.get('formset_id', ''), 
                     'is_active': True
                 }]
             )

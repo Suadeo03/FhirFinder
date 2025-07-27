@@ -43,10 +43,11 @@ app.include_router(queryperformance_router, prefix="/api/v1", tags=["performance
 app.include_router(feedback_router, prefix="/api/v1", tags=["feedback"])
 app.include_router(formsets_router, prefix="/api/v1", tags=["formsets"])
 app.include_router(formlookup_router, prefix="/api/v1", tags=["formlookup"])
+
 static_dir = "static"
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    logger.info(f"📁 Static files mounted from {static_dir}")
+    logger.info(f"Static files mounted from {static_dir}")
 
 
 

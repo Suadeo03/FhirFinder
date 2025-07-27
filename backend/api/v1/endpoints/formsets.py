@@ -15,8 +15,8 @@ from services.elt_form_service import ETL_Form_Service
 router = APIRouter()
 elt_form_service = ETL_Form_Service()
 
-# Pydantic models for API
-class FormsetResponse(BaseModel):  # Renamed from DatasetResponse
+
+class FormsetResponse(BaseModel): 
     id: str
     name: str
     filename: str
@@ -29,14 +29,14 @@ class FormsetResponse(BaseModel):  # Renamed from DatasetResponse
     class Config:
         from_attributes = True
 
-class FormsetList(BaseModel):  # Renamed from DatasetList
-    formsets: List[FormsetResponse]  # Updated field name
+class FormsetList(BaseModel): 
+    formsets: List[FormsetResponse]  
     total: int
 
 class ProcessResponse(BaseModel):
     success: bool
     message: str
-    formset_id: str  # Renamed from dataset_id
+    formset_id: str  
 
 
 UPLOAD_DIR = "uploads"
@@ -255,11 +255,11 @@ async def delete_formset(formset_id: str, db: Session = Depends(get_db)):
                 detail="Cannot delete active formset. Activate another formset first."
             )
         
-        # Delete file if it exists
+
         if formset.file_path and os.path.exists(formset.file_path):
             os.remove(formset.file_path)
         
-        # Delete from database (cascade will handle related forms)
+        
         db.delete(formset)
         db.commit()
         
@@ -280,7 +280,7 @@ async def preview_formset_forms(
     if not formset:
         raise HTTPException(status_code=404, detail="Formset not found")
     
-    # Use the correct field name 'formset_id' instead of 'dataset_id'
+   
     forms = db.query(Form).filter(
         Form.formset_id == formset_id
     ).limit(limit).all()
