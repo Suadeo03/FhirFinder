@@ -14,7 +14,7 @@ from api.v1.endpoints.feedback import router as feedback_router
 from api.v1.endpoints.formsets import router as formsets_router
 from api.v1.endpoints.formLookup import router as formlookup_router
 from config.database import init_database, get_db
-from config.redis import RedisQueryCache
+from config.redis_cache import RedisQueryCache
 from services.search_service import SearchService
 
 # Initialize database on startup
