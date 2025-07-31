@@ -71,25 +71,38 @@ class RedisQueryCache:
         cache_string = json.dumps(cache_data, sort_keys=True)
         return f"search:{hashlib.md5(cache_string.encode()).hexdigest()}"
     
-    def get_cached_search(self, query: str, filters: dict = None) -> Optional[dict]:
-        """Get cached search results"""
+    def get_cached_feedback(self, query: str):
+        """Get cached feedback data for a query"""
         if not self.is_connected():
-            return None
-        
+                return None      
         try:
-            cache_key = self._generate_cache_key(query, filters)
-            cached_result = self.client.get(cache_key)
-            
-            if cached_result:
-                print(f"Cache hit for query: {query}")
-                return json.loads(cached_result)
-            else:
-                print(f"Cache miss for query: {query}")
-                return None
+                pattern = f"positive_feedback:{query.lower().strip()}:*"
+                feedback_data = []
                 
+                for key in self.client.scan_iter(match=pattern, count=1000):
+                    # Get the timestamp value
+                    timestamp_str = self.client.get(key)
+                    if timestamp_str:
+                        # Extract profile_id from key
+                        parts = key.split(':')
+                        profile_id = parts[2] if len(parts) >= 3 else None
+                        
+                        feedback_data.append({
+                            'profile_id': profile_id,
+                            'timestamp': timestamp_str,
+                            'key': key
+                        })
+                
+                if feedback_data:
+                    print(f"Found {len(feedback_data)} feedback entries for query: {query}")
+                    return feedback_data
+                else:
+                    print(f"No feedback found for query: {query}")
+                    return None
+
         except Exception as e:
-            print(f"Error getting cached search: {e}")
-            return None
+                print(f"Error getting cached search: {e}")
+                return None
     
     def cache_search_results(self, query: str, results: dict, filters: dict = None, ttl: int = 3600):
         """Cache search results with TTL (default 1 hour)"""
@@ -179,7 +192,7 @@ class RedisQueryCache:
             return False
         
         try:
-            feedback_key = f"feedback:{key}"
+            feedback_key = key
             if expire_seconds:
                 self.client.set(feedback_key, value, ex=expire_seconds)
             else:
@@ -220,5 +233,4 @@ class RedisQueryCache:
             print("Redis connection closed")
 
 
-delete = RedisQueryCache()
-delete.clear_all_cache()
+

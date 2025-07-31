@@ -23,10 +23,12 @@ h1 {
 /* Tab Styles */
 .tab-container {
     margin-bottom: 20px;
+
 }
 
 .tab-nav {
     display: flex;
+    justify-content: center; 
     border-bottom: 2px solid #e9ecef;
     margin-bottom: 20px;
 }
@@ -44,13 +46,13 @@ h1 {
 }
 
 .tab-button:hover {
-    color: #4CAF50;
+    color: #af904c;
     background-color: #f8f9fa;
 }
 
 .tab-button.active {
-    color: #4CAF50;
-    border-bottom-color: #4CAF50;
+    color: #af9d4c;
+    border-bottom-color: #af784c;
     background-color: #f8f9fa;
 }
 
@@ -96,7 +98,7 @@ input[type="text"]:focus {
 }
 
 button {
-    background-color: #d6681e;
+    background-color: #af4c0a;
     color: white;
     padding: 12px 24px;
     border: none;
@@ -107,7 +109,7 @@ button {
 }
 
 button:hover {
-    background-color: #dadd20;
+    background-color: #ddba20;
 }
 
 button:disabled {
@@ -135,12 +137,12 @@ button:disabled {
 .loading {
     background-color: #d1ecf1;
     border: 1px solid #bee5eb;
-    color: #0c5460;
+    color: #dd8809;
 }
 
 .code-result {
     background: #f8f9fa;
-    border-left: 4px solid #4CAF50;
+    border-left: 4px solid #af8c4c;
     padding: 15px;
     margin-top: 10px;
 }
@@ -213,6 +215,8 @@ pre {
 
 .test-buttons {
     margin-bottom: 20px;
+    text-align: center;
+    
 }
 
 .test-buttons button {
@@ -245,4 +249,18 @@ pre {
 .copy-button-mini:hover {
     opacity: 1;
     background: rgba(255, 255, 255, 0.95);
+}
+
+img {
+    width: 270px;
+    height: 130px;
+    object-fit: cover;
+    display:block;
+    margin: 0 auto; 
+}
+
+
+.img-responsive {
+    max-width: 100%;
+    height: auto; 
 }

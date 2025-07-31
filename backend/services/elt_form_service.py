@@ -109,7 +109,7 @@ class ETL_Form_Service:
         form['question'] = self._extract_field(row, ['question']) or "no question available"
         
         # Fixed the typo in the field name
-        form['loinc_question_code'] = self._extract_field(row, ['loinc_question_code', 'loinc_quesiton_code']) or "no question code"
+        form['loinc_question_code'] = self._extract_field(row, ['loinc_question_code']) or "no question code"
         form['loinc_question_name_long'] = self._extract_field(row, ['loinc_question_name_long']) or ""
         
         answer_raw = self._extract_field(row, ['answer_concept'])
@@ -118,9 +118,8 @@ class ETL_Form_Service:
         loinc_answer_raw = self._extract_field(row, ['loinc_answer'])
         form['loinc_answer'] = self._parse_keywords(loinc_answer_raw) or "None available"
         
-        # Fixed field name mapping
-        loinc_concept_raw = self._extract_field(row, ['loinc_concept', 'loinc_answer_concept'])
-        form['loinc_concept'] = self._parse_keywords(loinc_concept_raw) or "None available"
+        loinc_concept_raw = self._extract_field(row, ['loinc_answer_concept'])
+        form['loinc_answer_concept'] = self._parse_keywords(loinc_concept_raw) or "None available"
 
         snomed_raw = self._extract_field(row, ['snomed_code_ct'])
         form['snomed_code_ct'] = self._parse_keywords(snomed_raw) or "No code available"
@@ -373,7 +372,7 @@ class ETL_Form_Service:
             db.rollback()
             return False
     
-    # Chroma methods    
+
     def _add_to_chroma(self, form_data: Dict, search_text: str, embedding: List[float]) -> bool:
         """Add a single form's embedding to Chroma"""
         if not self.collection:
@@ -438,7 +437,7 @@ class ETL_Form_Service:
             return False
         
         try:
-            # Get current document
+    
             results = self.collection.get(ids=[form_id], include=['metadatas'])
             if results['ids']:
                 metadata = results['metadatas'][0]

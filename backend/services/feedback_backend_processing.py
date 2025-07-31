@@ -19,7 +19,7 @@ from models.feedback_models import (
     FeedbackTrainingBatch, SearchExperiment
 )
 from models.database.models import Profile
-from config.redis import RedisQueryCache
+from config.redis_cache import RedisQueryCache
 from config.chroma import ChromaConfig
 
 # Configure logging

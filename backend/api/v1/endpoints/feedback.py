@@ -7,8 +7,10 @@ from typing import Optional, Dict, List
 from datetime import datetime
 from config.database import get_db
 from services.training_service import TrainingFeedback
+from services.search_service import SearchService
 
 router = APIRouter()
+search_service = SearchService()
 
 feedback_service = TrainingFeedback()
 

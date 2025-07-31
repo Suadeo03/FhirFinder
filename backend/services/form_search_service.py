@@ -1,13 +1,13 @@
 # backend/services/database_search_service.py
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import functions as func
+from sqlalchemy import func
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from services.performance_log import create_performance_log
 from models.database.form_model import Form, Formset, FormProcessingJob
-from config.redis import RedisQueryCache
+from config.redis_cache import RedisQueryCache
 from config.chroma import ChromaConfig
 import uuid
 
@@ -24,16 +24,6 @@ class FormLookupService:
             self.chroma_config = ChromaConfig()
             self.collection = self.chroma_config.collection
             
-            if self.collection:
-                info = self.chroma_config.get_client_info()
-                print(f"Chroma initialized: {info}")
-
-                if self.chroma_config.test_connection():
-                    print("Chroma is ready for semantic search")
-                else:
-                    print("Chroma connection unstable")
-            else:
-                print("Chroma collection not available - falling back to traditional search only")
 
         except Exception as e:
             print(f"Error initializing Chroma: {e}")
@@ -393,12 +383,12 @@ class FormLookupService:
             active_formset = db.query(Formset).filter(Formset.status == "active").first()
             
             # Get domain statistics
-            domain_stats = db.query(Form.domain, db.func.count(Form.id)).filter(
+            domain_stats = db.query(Form.domain, db.count(Form.id)).filter(
                 Form.is_active == True
             ).group_by(Form.domain).all()
             
             # Get screening tool statistics
-            tool_stats = db.query(Form.screening_tool, db.func.count(Form.id)).filter(
+            tool_stats = db.query(Form.screening_tool, db.count(Form.id)).filter(
                 Form.is_active == True
             ).group_by(Form.screening_tool).all()
             

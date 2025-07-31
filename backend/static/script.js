@@ -1,8 +1,8 @@
+
 // Tab switching functionality
 let currentTab = 'resources';
 let currentResult = null;
-function switchTab(tabName) {
- 
+function switchTab(tabName, event) {
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
@@ -43,15 +43,14 @@ class FhirTextQuery {
        
             let endpoint = '/api/v1/search/';
             switch(dataset) {
-                case 'terminology':
-                    endpoint = '/api/v1/parameters/';
-                    break;
-                case 'assessments':
-                    endpoint = '/api/v1/form/lookup/';
+                case 'form':
+                    endpoint = '/api/v1/forms/search';
                     break;
                 case 'mapping':
                     endpoint = '/api/v1/mapping/';
                     break;
+                default:
+                    endpoint = '/api/v1/search/'
             }
 
             const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -114,7 +113,12 @@ async function lookupBtn() {
         }
 
         if (hasResults(result)) {
-            showResult(displayCodeResult(result, currentTab));
+            if (currentTab === 'resources') {
+                showResult(displayCodeResult(result, currentTab));
+            }
+            else if (currentTab === 'form') {
+                showResult(displayFormResult(result, currentTab));
+            } 
         } else {
             showResult(`<div class="error">No results found in ${currentTab} dataset</div>`);
             currentResult = null;
@@ -274,7 +278,7 @@ class FeedbackService {
     constructor(baseUrl = 'http://localhost:8000') {
         this.baseUrl = baseUrl;
     }
- 
+    //case for each feedback type tab
     async sendFeedback(query, oid_id, feedbackType, original_score, contextInfo) {
         try {
       
@@ -324,7 +328,7 @@ async function sendFeedbackResponse(feedbackType) {
         showResult('<div class="error">No search result available for feedback.</div>');
         return;
     }
-    
+    //modify based on current tab
     const query = getCurrentQuery();
     const oid_id = currentResult.results[0].oid;
     const originalScore = currentResult.results[0].similarity_score || 0.0;

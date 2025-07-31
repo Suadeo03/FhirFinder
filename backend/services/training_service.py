@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from sqlalchemy.orm import Session
-from config.redis import RedisQueryCache
+from config.redis_cache import RedisQueryCache
 import numpy as np
 from models.database.feedback_models import UserFeedback, SearchQualityMetrics
 from sqlalchemy import func, and_, case, desc, asc

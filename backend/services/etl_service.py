@@ -495,7 +495,9 @@ class ETLService:
                     'resource_type': profile_data.get('resource_type', 'Unknown'),
                     'category': profile_data.get('category', 'Unknown'),
                     'dataset_id': profile_data.get('dataset_id', ''),
-                    'keywords': ','.join((profile_data.get('keywords') or [])[:20]),
+                    'keywords': ','.join((profile_data.get('keywords') or [])[:200]),
+                    'use_contexts': json.dumps(profile_data.get('use_contexts', [])),
+                    'fhir_searchable_text': profile_data.get('fhir_searchable_text', ''),
                     'is_active': True
                 }]
             )
@@ -521,7 +523,9 @@ class ETLService:
                     'resource_type': profile_data.get('resource_type', 'Unknown'),
                     'category': profile_data.get('category', 'Unknown'),
                     'dataset_id': profile_data.get('dataset_id', ''),
-                    'keywords': ','.join((profile_data.get('keywords') or [])[:20]),
+                    'keywords': ','.join((profile_data.get('keywords') or [])[:200]),
+                    'use_contexts': json.dumps(profile_data.get('use_contexts', [])),
+                    'fhir_searchable_text': profile_data.get('fhir_searchable_text', ''),
                     'is_active': True
                 })
             
