@@ -46,7 +46,7 @@ class FormLookupService:
         if redis_client.is_connected():
             query_normalized = query.lower().strip()
             
-            cached_results = redis_client.get_cached_search(query_normalized)
+            cached_results = redis_client.get_cached_feedback(query_normalized)
             if cached_results:
                 print(f"Cache hit for query: {query}")
                 return cached_results

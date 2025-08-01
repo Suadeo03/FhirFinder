@@ -279,7 +279,7 @@ class FeedbackService {
         this.baseUrl = baseUrl;
     }
     //case for each feedback type tab
-    async sendFeedback(query, oid_id, feedbackType, original_score, contextInfo) {
+    async sendFeedback(query, id, feedbackType, original_score, contextInfo) {
         try {
       
             const response = await fetch(`${this.baseUrl}/api/v1/feedback/record`, {
@@ -291,7 +291,7 @@ class FeedbackService {
                 mode: 'cors',
                 body: JSON.stringify({
                     query: query,
-                    profile_id: oid_id,
+                    profile_id: id,
                     feedback_type: feedbackType,
                     session_id: 'default-session',
                     user_id: 'default-user',
@@ -330,7 +330,7 @@ async function sendFeedbackResponse(feedbackType) {
     }
     //modify based on current tab
     const query = getCurrentQuery();
-    const oid_id = currentResult.results[0].oid;
+    const id = currentResult.results[0].id;//change to id
     const originalScore = currentResult.results[0].similarity_score || 0.0;
     const context_info = currentResult.results[0].use_contexts[0] || '';
     const feedbackService = new FeedbackService();
@@ -349,7 +349,7 @@ async function sendFeedbackResponse(feedbackType) {
     
     try {
         const response = await feedbackService.sendFeedback(
-            query, oid_id, feedbackType, originalScore, context_info
+            query, id, feedbackType, originalScore, context_info
         );
         
         console.log('Feedback sent successfully:', response);

@@ -8,15 +8,15 @@
 </head>
 <body>
     <div class="container">
-        <h1>Suadeo</h1>
-        
+        <!--<h1>Suadeo</h1>-->
+        <img src="logo2.png" alt="Suadeo Logo" class="responsive">
         <div id="connectionStatus"></div>
         
         <div class="tab-container">
             <!-- Tab Navigation -->
             <div class="tab-nav">
-                <button class="tab-button active" onclick="switchTab('resources', event)">FHIR Resources</button>
-                <button class="tab-button" onclick="switchTab('form', event)">Form</button>
+                <button class="tab-button active" onclick="switchTab('resources', event)">Find Resources</button>
+                <button class="tab-button" onclick="switchTab('form', event)">Question Mapper</button>
                 <button class="tab-button" onclick="switchTab('mapping', event)">V2 to FHIR</button>
             </div>
 
@@ -50,7 +50,7 @@
         
         <div class="test-buttons">
             <button id="lookupBtn" onclick="lookupBtn()">Lookup</button>
-            <button id="positiveResponse" onclick="positiveResponse()">Good Response</button>
+            <button id="positiveResponse" onclick="positiveResponse()">Helpful</button>
             <button onclick="negativeResponse()">Not Helpful</button>
             <button onclick="clearResult()">Clear</button>
         </div>
