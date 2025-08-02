@@ -6,13 +6,13 @@ from pydantic import BaseModel
 from typing import Optional, Dict, List
 from datetime import datetime
 from config.database import get_db
-from services.training_service import TrainingFeedback
+from services.training_service import FeedbackTraining
+from models.database.feedback_models import UserFeedback, SearchQualityMetrics
 from services.search_service import SearchService
 
 router = APIRouter()
 search_service = SearchService()
-
-feedback_service = TrainingFeedback()
+feedback_service = FeedbackTraining()
 
 # Pydantic models for API
 class FeedbackRequest(BaseModel):
@@ -32,7 +32,7 @@ class FeedbackResponse(BaseModel):
 class SearchWithFeedbackRequest(BaseModel):
     query: str
     top_k: int = 10
-    search_type: str = "hybrid"  # 'semantic', 'traditional', 'hybrid'
+    search_type: str = "semantic"  # 'semantic', 'traditional', 'hybrid'
     semantic_weight: float = 0.7
     filters: Optional[Dict] = None
     apply_feedback: bool = True

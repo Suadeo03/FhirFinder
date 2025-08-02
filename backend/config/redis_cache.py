@@ -132,9 +132,7 @@ class RedisQueryCache:
     
     def clear_cache(self, pattern: str = "search:*") -> bool:
         """Clear cache entries matching pattern (default: all search cache)"""
-        if not self.is_connected():
-            print("Cannot clear cache - Redis not connected")
-            return False
+
         
         try:
             keys = self.client.keys(pattern)

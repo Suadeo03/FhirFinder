@@ -16,17 +16,17 @@ class UserFeedback(Base):
     
     id = Column(Integer, primary_key=True, index=True) 
     query_text = Column(Text, nullable=False, index=True)
-    query_normalized = Column(Text, nullable=False, index=True)  # Lowercased, trimmed
+    query_normalized = Column(Text, nullable=False, index=True)  
     profile_id = Column(String(255), nullable=False, index=True)
     feedback_type = Column(String(20), nullable=False)  # 'positive', 'negative', 'neutral'
-    feedback_score = Column(Float, default=0.0)  # Optional numerical score
-    feedback_comment = Column(Text, nullable=True)  # Optional user comment
+    feedback_score = Column(Float, default=0.0) 
+    feedback_comment = Column(Text, nullable=True)  
     user_id = Column(String(255), nullable=True, index=True)
     session_id = Column(String(255), nullable=False, index=True)
     original_score = Column(Float, nullable=False)
-    search_type = Column(String(50), nullable=True)  # 'semantic', 'traditional', 'hybrid'
-    search_rank = Column(Integer, nullable=True)  # Position in search results (1-based)
-    context_info = Column(JSON, nullable=True)  # Store additional metadata
+    search_type = Column(String(50), nullable=True)  
+    search_rank = Column(Integer, nullable=True)  
+    context_info = Column(JSON, nullable=True)  
     user_agent = Column(String(500), nullable=True)
     ip_address = Column(String(45), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
