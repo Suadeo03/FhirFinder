@@ -13,7 +13,7 @@ class ChromaConfig:
     def init_chroma(self):
 
         collection_name = os.getenv('CHROMA_COLLECTION_NAME', 'fhir_profiles')
-        
+
         if self._try_http_connection(collection_name):
             return
         if self._try_persistent_client(collection_name):
@@ -182,3 +182,4 @@ class ChromaConfig:
                 
         except Exception as e:
             print(f"❌ Error clearing collection: {e}")
+

@@ -26,7 +26,7 @@ async def search_profiles(request: SearchRequest, db: Session = Depends(get_db))
         search_service = SearchService()
         results = search_service.semantic_search(request.query, request.limit, db)
         stats = search_service.get_search_stats(db)
-        
+
         return SearchResponse(
             query=request.query,
             results=results,

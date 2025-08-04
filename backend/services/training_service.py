@@ -25,21 +25,59 @@ class FeedbackTraining:
 
         
     def record_user_feedback(self, query: str, profile_id: str, feedback_type: str, 
-                           user_id: str, session_id: str, original_score: float, 
-                           db: Session, context_info: Optional[Dict] = None):
+                       user_id: str, session_id: str, original_score: float, 
+                       db: Session, context_info: Optional[Dict] = None):
 
+    
+        # NEW: Check if profile exists and is active
+        from models.database.models import Profile
+        profile = db.query(Profile).filter(Profile.id == profile_id).first()
         
+        if not profile:
+            print(f"❌ Profile {profile_id} not found in database")
+            return {"status": "error", "message": "Profile not found"}
+        
+        if not profile.is_active:
+            print(f"⚠️  Profile {profile_id} is inactive, skipping embedding update")
+            # Still record the feedback for analytics, but don't update embeddings
+            self._store_feedback_record(query, profile_id, feedback_type, user_id, 
+                                    session_id, original_score, db, context_info)
+            return {"status": "recorded", "message": "Feedback recorded for inactive profile (no embedding update)"}
+        
+        # Original logic for active profiles
         self._store_feedback_record(query, profile_id, feedback_type, user_id, 
-                                  session_id, original_score, db, context_info)
+                                session_id, original_score, db, context_info)
         
-   
         if feedback_type in ['positive', 'negative']:
             self._update_profile_embedding(query, profile_id, feedback_type, db)
+        
+        if feedback_type == 'negative':
+            self._invalidate_query_cache(query)
+            print(f"Cache invalidated due to negative feedback")
+        elif feedback_type == 'positive':
+            self._extend_cache_if_exists(query)
+            print(f"Cache extended due to positive feedback")
+        
+        return {"status": "success", "message": "Feedback recorded and processed"}
             
-  
+    def _extend_cache_if_exists(self, query: str):
+        """Extend cache lifetime for positive feedback"""
+        try:
+            from config.redis_cache import RedisQueryCache
+            redis_client = RedisQueryCache()
+            query_normalized = query.lower().strip()
+            
+            # Get existing cache
+            cached_data = redis_client.get_cached_feedback(query_normalized)
+            if cached_data:
+                # Re-cache with extended expiration (24 hours)
+                redis_client.set_feedback(query_normalized, cached_data, 86400)
+                print(f"Extended cache for positive feedback on: {query}")
+        except Exception as e:
+            print(f"Error extending cache: {e}")
     
     def _update_profile_embedding(self, query: str, profile_id: str, feedback_type: str, db: Session):
-  
+ 
         try:
             # Get current profile embedding from Chroma
             current_results = self.collection.get(
@@ -47,16 +85,35 @@ class FeedbackTraining:
                 include=['embeddings', 'metadatas']
             )
             
-            # FIXED: Check if results exist properly
-            if not current_results or not current_results.get('embeddings') or len(current_results['embeddings']) == 0:
-                print(f"Profile {profile_id} not found in vector database")
+            if not self._is_valid_embedding_result(current_results):
+                print(f"Invalid or missing embeddings for profile {profile_id}")
                 return
             
             current_embedding = np.array(current_results['embeddings'][0])
-            metadata = current_results['metadatas'][0] if current_results.get('metadatas') else {}
+            
+            # Validate the embedding array
+            if current_embedding.size == 0:
+                print(f"Empty embedding array for profile {profile_id}")
+                return
+                
+            if np.any(np.isnan(current_embedding)):
+                print(f"NaN values in embedding for profile {profile_id}")
+                return
+            
+            # Get metadata safely
+            metadatas = current_results.get('metadatas')
+            if metadatas is not None and len(metadatas) > 0:
+                metadata = metadatas[0] if metadatas[0] is not None else {}
+            else:
+                metadata = {}
             
             # Generate query embedding
             query_embedding = np.array(self.model.encode([query])[0])
+            
+            # Validate query embedding
+            if query_embedding.size == 0 or np.any(np.isnan(query_embedding)):
+                print(f"Invalid query embedding for query: {query}")
+                return
             
             # Calculate update direction and magnitude
             if feedback_type == 'positive':
@@ -71,7 +128,7 @@ class FeedbackTraining:
             # Apply update with small learning rate
             updated_embedding = current_embedding + (weight * direction)
             
-            # FIXED: Check for zero vector before normalizing
+            # Safe normalization
             embedding_norm = np.linalg.norm(updated_embedding)
             if embedding_norm > 1e-8:  # Avoid division by zero
                 updated_embedding = updated_embedding / embedding_norm
@@ -79,11 +136,16 @@ class FeedbackTraining:
                 print(f"Warning: Near-zero embedding norm for profile {profile_id}, keeping original")
                 updated_embedding = current_embedding
             
+            # Validate final embedding
+            if np.any(np.isnan(updated_embedding)) or np.any(np.isinf(updated_embedding)):
+                print(f"Invalid updated embedding for profile {profile_id}, keeping original")
+                updated_embedding = current_embedding
+            
             # Update metadata safely
             updated_metadata = {
-                **(metadata or {}),  # Handle None metadata
+                **metadata,
                 'last_feedback_update': datetime.utcnow().isoformat(),
-                'feedback_count': (metadata.get('feedback_count', 0) if metadata else 0) + 1
+                'feedback_count': metadata.get('feedback_count', 0) + 1
             }
             
             # Update in Chroma
@@ -93,12 +155,51 @@ class FeedbackTraining:
                 metadatas=[updated_metadata]
             )
             
-            print(f"Updated embedding for profile {profile_id} based on {feedback_type} feedback")
+            print(f"Successfully updated embedding for profile {profile_id} based on {feedback_type} feedback")
             
         except Exception as e:
             print(f"Error updating profile embedding: {e}")
             import traceback
             traceback.print_exc()
+
+    def _is_valid_embedding_result(self, results) -> bool:
+
+        try:
+            if results is None:
+                print("No results returned from Chroma")
+                return False
+            
+            embeddings = results.get('embeddings')
+            if embeddings is None:
+                print("No embeddings found in results")
+                return False
+                
+            if not isinstance(embeddings, (list, tuple)):
+                print("Embeddings are not a list or tuple")
+                return False
+                
+            if len(embeddings) == 0:
+                print("Empty embeddings list")
+                return False
+                
+            if embeddings[0] is None:
+                print("First embedding is None")
+                return False
+                
+            # Convert to numpy and validate
+            embedding_array = np.array(embeddings[0])
+            if embedding_array.size == 0:
+                print("Embedding array is empty")
+                return False
+                
+            if np.any(np.isnan(embedding_array)):
+                print("Embedding contains NaN values")
+                return False
+                
+            return True
+            
+        except Exception:
+            return False
     
     def batch_retrain_embeddings(self, db: Session, days_back: int = 30):
         """Batch retraining based on accumulated feedback"""
@@ -140,50 +241,78 @@ class FeedbackTraining:
                 include=['embeddings', 'metadatas']
             )
             
-            # FIXED: Proper existence check
-            if (not current_results or 
-                not current_results.get('embeddings') or 
-                len(current_results['embeddings']) == 0):
-                print(f"Profile {profile_id} not found for batch update")
+            # FIXED: Same proper checking pattern
+            if current_results is None:
+                print(f"No results for batch update of profile {profile_id}")
+                return
+                
+            embeddings = current_results.get('embeddings')
+            if embeddings is None or len(embeddings) == 0 or embeddings[0] is None:
+                print(f"No valid embeddings for batch update of profile {profile_id}")
                 return
             
-            current_embedding = np.array(current_results['embeddings'][0])
-            metadata = current_results['metadatas'][0] if current_results.get('metadatas') else {}
+            current_embedding = np.array(embeddings[0])
             
-            # Calculate weighted updates from all feedback
+            # Validate embedding
+            if current_embedding.size == 0 or np.any(np.isnan(current_embedding)):
+                print(f"Invalid current embedding for profile {profile_id}")
+                return
+            
+            metadatas = current_results.get('metadatas')
+            metadata = metadatas[0] if (metadatas and len(metadatas) > 0 and metadatas[0]) else {}
             total_update = np.zeros_like(current_embedding)
             update_count = 0
             
             # Process positive feedback
             for pos_feedback in feedback_data.get('positive', []):
-                query_embedding = np.array(self.model.encode([pos_feedback['query']])[0])
-                direction = query_embedding - current_embedding
-                
-                # Weight by recency (more recent feedback has more impact)
-                days_old = (datetime.utcnow() - pos_feedback['timestamp']).days
-                time_weight = np.exp(-days_old / 14)  # 2-week decay
-                
-                total_update += self.feedback_weights['positive'] * time_weight * direction
-                update_count += 1
+                try:
+                    query_embedding = np.array(self.model.encode([pos_feedback['query']])[0])
+                    
+                    if np.any(np.isnan(query_embedding)):
+                        print(f"Skipping invalid query embedding for: {pos_feedback['query']}")
+                        continue
+                    
+                    direction = query_embedding - current_embedding
+                    
+                    # Weight by recency
+                    days_old = (datetime.utcnow() - pos_feedback['timestamp']).days
+                    time_weight = np.exp(-days_old / 14)  # 2-week decay
+                    
+                    total_update += self.feedback_weights['positive'] * time_weight * direction
+                    update_count += 1
+                    
+                except Exception as e:
+                    print(f"Error processing positive feedback: {e}")
+                    continue
             
             # Process negative feedback
             for neg_feedback in feedback_data.get('negative', []):
-                query_embedding = np.array(self.model.encode([neg_feedback['query']])[0])
-                direction = current_embedding - query_embedding
-                
-                days_old = (datetime.utcnow() - neg_feedback['timestamp']).days
-                time_weight = np.exp(-days_old / 14)
-                
-                total_update += abs(self.feedback_weights['negative']) * time_weight * direction
-                update_count += 1
+                try:
+                    query_embedding = np.array(self.model.encode([neg_feedback['query']])[0])
+                    
+                    if np.any(np.isnan(query_embedding)):
+                        print(f"Skipping invalid query embedding for: {neg_feedback['query']}")
+                        continue
+                    
+                    direction = current_embedding - query_embedding
+                    
+                    days_old = (datetime.utcnow() - neg_feedback['timestamp']).days
+                    time_weight = np.exp(-days_old / 14)
+                    
+                    total_update += abs(self.feedback_weights['negative']) * time_weight * direction
+                    update_count += 1
+                    
+                except Exception as e:
+                    print(f"Error processing negative feedback: {e}")
+                    continue
             
-            # FIXED: Apply updates only if we have feedback
+            # Apply updates only if we have valid feedback
             if update_count > 0:
                 # Average the updates and apply
                 avg_update = total_update / update_count
                 updated_embedding = current_embedding + avg_update
                 
-                # FIXED: Safe normalization
+                # Safe normalization
                 embedding_norm = np.linalg.norm(updated_embedding)
                 if embedding_norm > 1e-8:
                     updated_embedding = updated_embedding / embedding_norm
@@ -191,11 +320,16 @@ class FeedbackTraining:
                     print(f"Warning: Near-zero norm in batch update for {profile_id}")
                     updated_embedding = current_embedding
                 
+                # Final validation
+                if np.any(np.isnan(updated_embedding)) or np.any(np.isinf(updated_embedding)):
+                    print(f"Invalid final embedding for profile {profile_id}, keeping original")
+                    updated_embedding = current_embedding
+                
                 # Update metadata safely
                 updated_metadata = {
-                    **(metadata or {}),
+                    **metadata,
                     'last_batch_update': datetime.utcnow().isoformat(),
-                    'total_feedback_processed': (metadata.get('total_feedback_processed', 0) if metadata else 0) + update_count
+                    'total_feedback_processed': metadata.get('total_feedback_processed', 0) + update_count
                 }
                 
                 # Update in Chroma
@@ -205,14 +339,48 @@ class FeedbackTraining:
                     metadatas=[updated_metadata]
                 )
                 
-                print(f"Batch updated profile {profile_id} with {update_count} feedback items")
+                print(f"Successfully batch updated profile {profile_id} with {update_count} feedback items")
             else:
-                print(f"No feedback to process for profile {profile_id}")
+                print(f"No valid feedback to process for profile {profile_id}")
         
         except Exception as e:
             print(f"Error in batch update for profile {profile_id}: {e}")
             import traceback
             traceback.print_exc()
+
+  
+    def _is_valid_embedding_result(self, results) -> bool:
+        """Helper function to safely check if Chroma results contain valid embeddings"""
+        try:
+            if results is None:
+                return False
+            
+            embeddings = results.get('embeddings')
+            if embeddings is None:
+                return False
+                
+            if not isinstance(embeddings, (list, tuple)):
+                return False
+                
+            if len(embeddings) == 0:
+                return False
+                
+            if embeddings[0] is None:
+                return False
+                
+            # Convert to numpy and validate
+            embedding_array = np.array(embeddings[0])
+            if embedding_array.size == 0:
+                return False
+                
+            if np.any(np.isnan(embedding_array)):
+                return False
+                
+            return True
+            
+        except Exception:
+            return False   
+    
     
     def _invalidate_query_cache(self, query: str):
         """Remove cached results for this query to force fresh vector search"""
@@ -220,6 +388,8 @@ class FeedbackTraining:
             from config.redis_cache import RedisQueryCache
             redis_client = RedisQueryCache()
             query_normalized = query.lower().strip()
+            
+            # Clear the specific cache entry
             redis_client.clear_cache(query_normalized)
             print(f"Invalidated cache for query: {query_normalized}")
         except Exception as e:
@@ -405,3 +575,8 @@ class FeedbackTraining:
                 "most_improved_profiles": [],
                 "most_problematic_profiles": []
             }
+        
+
+
+
+

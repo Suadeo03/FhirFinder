@@ -4,20 +4,25 @@ import json
 import uuid
 from typing import List, Dict, Any, Union, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
 from models.database.models import Dataset, Profile, ProcessingJob
 from config.chroma import ChromaConfig
+import os
 from sentence_transformers import SentenceTransformer
+from sqlalchemy.orm import sessionmaker
+
 import re
 from datetime import datetime
 
 class ETLService:
 
-    
     def __init__(self):
  
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
         self.collection = ChromaConfig().collection
-    
+
+
+
     def process_dataset(self, dataset_id: str, db: Session) -> bool:
 
         try:
@@ -347,27 +352,31 @@ class ETLService:
         return validated
     
     def _load_profiles(self, profiles_data: List[Dict], dataset_id: str, db: Session) -> int:
-        """Load validated profiles into database - UPDATED VERSION"""
+        """Enhanced load profiles with better Chroma integration"""
         loaded_count = 0
         search_texts = []
         embeddings = []
+        chroma_profiles = []
 
         try:
             db.rollback()
         except:
             pass
         
+        print(f"🔄 Loading {len(profiles_data)} profiles to database and Chroma...")
+        
         for profile_data in profiles_data:
             try:
-
+                # Generate search text
                 base_search_text = f"{profile_data['name']} {profile_data['description']} {' '.join(profile_data['keywords'])}"
-
                 fhir_search_text = profile_data.get('fhir_searchable_text', '')
                 if fhir_search_text:
                     base_search_text += f" {fhir_search_text}"
 
+                # Generate embedding
                 embedding = self.model.encode([base_search_text])[0].tolist()
 
+                # Create/update database profile
                 profile = Profile(
                     id=profile_data['id'],
                     oid=profile_data.get('oid'),  
@@ -388,7 +397,6 @@ class ETLService:
                     search_text=base_search_text, 
                 )
                 
-
                 existing = db.query(Profile).filter(Profile.id == profile_data['id']).first()
                 if existing:
                     for key, value in profile_data.items():
@@ -398,30 +406,40 @@ class ETLService:
                     existing.embedding_vector = embedding
                     existing.dataset_id = dataset_id
                 else:
-
                     db.add(profile)
                 
+                # Prepare for Chroma
+                profile_data['dataset_id'] = dataset_id  # Ensure dataset_id is set
                 search_texts.append(base_search_text)
                 embeddings.append(embedding)
-                profile_data['dataset_id'] = dataset_id 
+                chroma_profiles.append(profile_data)
                 
                 loaded_count += 1
                 
             except Exception as e:
-                print(f"Error loading profile {profile_data.get('id', 'unknown')}: {e}")
- 
+                print(f"❌ Error loading profile {profile_data.get('id', 'unknown')}: {e}")
                 db.rollback()
                 continue
- 
+
+        # Commit database changes first
         try:
             db.commit()
+            print(f"✅ Database commit successful: {loaded_count} profiles")
         except Exception as e:
-            print(f"Commit failed: {e}")
+            print(f"❌ Database commit failed: {e}")
             db.rollback()
             raise
-        
-        if self.collection and profiles_data:
-            self._batch_add_to_chroma(profiles_data, search_texts, embeddings)
+
+        # Add to Chroma
+        if self.collection and chroma_profiles:
+            print(f"🔄 Adding {len(chroma_profiles)} profiles to Chroma...")
+            chroma_success = self._batch_add_to_chroma(chroma_profiles, search_texts, embeddings)
+            
+            if not chroma_success:
+                print(f"❌ Warning: Chroma addition failed, but database commit was successful")
+                print(f"   You may need to run a sync operation later")
+        else:
+            print(f"⚠️  Chroma collection not available, skipping vector database addition")
             
         return loaded_count
     
@@ -453,21 +471,34 @@ class ETLService:
             return False
         
     def deactivate_dataset(self, dataset_id: str, db: Session) -> bool:
-        """Deactivate a dataset (remove from search)"""
+
         try:
             dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
             if not dataset:
                 raise ValueError(f"Dataset {dataset_id} not found")
+                
             profiles_updated = db.query(Profile).filter(
                 Profile.dataset_id == dataset_id
             ).update({"is_active": False})
+            
             dataset.status = "inactive"
             dataset.deactivated_date = datetime.utcnow()
             db.commit()
+            
+            # Update Chroma metadata
             if self.collection:
                 profile_ids = [p.id for p in db.query(Profile.id).filter(Profile.dataset_id == dataset_id).all()]
                 for profile_id in profile_ids:
                     self._update_chroma_metadata(profile_id, False)
+
+            # NEW: Clear all cache when deactivating dataset
+            try:
+                from config.redis_cache import RedisQueryCache
+                redis_client = RedisQueryCache()
+                redis_client.clear_all_cache()
+                print(f"✅ Cleared all cache after deactivating dataset")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not clear cache: {e}")
 
             print(f"Deactivated {profiles_updated} profiles from dataset {dataset.name}")
             return True
@@ -506,29 +537,56 @@ class ETLService:
             print(f"Error adding to Chroma: {e}")
             return False
     
-    def _batch_add_to_chroma(self, profiles_data: List[Dict], search_texts: List[str], 
-                            embeddings: List[List[float]]) -> bool:
-        """Batch add profiles to Chroma"""
+    def _batch_add_to_chroma(self, profiles_data: List[Dict], search_texts: List[str], embeddings: List[List[float]]) -> bool:
+
         if not self.collection or not profiles_data:
+            print(f"❌ Cannot add to Chroma: collection={bool(self.collection)}, profiles={len(profiles_data) if profiles_data else 0}")
             return False
-        
+    
         try:
+            print(f"🔄 Starting batch add to Chroma: {len(profiles_data)} profiles")
+            
+            # Validate inputs
+            if len(profiles_data) != len(search_texts) or len(profiles_data) != len(embeddings):
+                print(f"❌ Input length mismatch: profiles={len(profiles_data)}, texts={len(search_texts)}, embeddings={len(embeddings)}")
+                return False
+            
             ids = [p['id'] for p in profiles_data]
             metadatas = []
             
-            for profile_data in profiles_data:
-                metadatas.append({
-                    'name': profile_data['name'],
-                    'description': (profile_data.get('description') or '')[:1000],
-                    'resource_type': profile_data.get('resource_type', 'Unknown'),
-                    'category': profile_data.get('category', 'Unknown'),
-                    'dataset_id': profile_data.get('dataset_id', ''),
-                    'keywords': ','.join((profile_data.get('keywords') or [])[:200]),
-                    'use_contexts': json.dumps(profile_data.get('use_contexts', [])),
-                    'fhir_searchable_text': profile_data.get('fhir_searchable_text', ''),
-                    'is_active': True
-                })
+            print(f"   Profile IDs to add: {ids[:5]}{'...' if len(ids) > 5 else ''}")
             
+            # Prepare metadata
+            for i, profile_data in enumerate(profiles_data):
+                try:
+                    metadata = {
+                        'name': profile_data['name'],
+                        'description': (profile_data.get('description') or '')[:1000],  # Truncate long descriptions
+                        'resource_type': profile_data.get('resource_type', 'Unknown'),
+                        'category': profile_data.get('category', 'Unknown'),
+                        'dataset_id': profile_data.get('dataset_id', ''),
+                        'keywords': ','.join((profile_data.get('keywords') or [])[:200]),  # Limit keywords
+                        'use_contexts': json.dumps(profile_data.get('use_contexts', [])),
+                        'fhir_searchable_text': profile_data.get('fhir_searchable_text', ''),
+                        'is_active': True
+                    }
+                    metadatas.append(metadata)
+                except Exception as e:
+                    print(f"❌ Error preparing metadata for profile {i}: {e}")
+                    return False
+            
+            # Validate embeddings
+            for i, embedding in enumerate(embeddings):
+                if not isinstance(embedding, list) or len(embedding) == 0:
+                    print(f"❌ Invalid embedding for profile {ids[i]}: {type(embedding)}, length={len(embedding) if isinstance(embedding, list) else 'N/A'}")
+                    return False
+                if any(not isinstance(x, (int, float)) for x in embedding):
+                    print(f"❌ Non-numeric values in embedding for profile {ids[i]}")
+                    return False
+            
+            print(f"✅ All inputs validated, performing upsert...")
+            
+            # Perform the upsert
             self.collection.upsert(
                 ids=ids,
                 embeddings=embeddings,
@@ -536,11 +594,25 @@ class ETLService:
                 metadatas=metadatas
             )
             
-            print(f"Successfully added {len(profiles_data)} profiles to Chroma")
-            return True
+            print(f"✅ Upsert completed, verifying...")
             
+            # Verify the addition
+            verification_results = self.collection.get(ids=ids)
+            found_ids = verification_results.get('ids', [])
+            
+            if len(found_ids) == len(ids):
+                print(f"✅ Successfully added {len(profiles_data)} profiles to Chroma (verified)")
+                return True
+            else:
+                print(f"❌ Verification failed: expected {len(ids)}, found {len(found_ids)}")
+                missing_ids = set(ids) - set(found_ids)
+                print(f"   Missing IDs: {list(missing_ids)[:5]}")
+                return False
+                
         except Exception as e:
-            print(f"Error in batch add to Chroma: {e}")
+            print(f"❌ Error in batch add to Chroma: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def _update_chroma_metadata(self, profile_id: str, is_active: bool) -> bool:
@@ -579,3 +651,5 @@ class ETLService:
             print(f"Error deleting from Chroma: {e}")
             return False
     
+
+

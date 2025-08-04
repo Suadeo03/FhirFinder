@@ -13,6 +13,10 @@ from services.search_service import SearchService
 router = APIRouter()
 search_service = SearchService()
 feedback_service = FeedbackTraining()
+if search_service.collection and feedback_service.collection:
+    feedback_service.collection = search_service.collection
+    feedback_service.chroma_config = search_service.chroma_config
+    print("✅ Feedback service now shares collection with search service")
 
 # Pydantic models for API
 class FeedbackRequest(BaseModel):
@@ -155,7 +159,7 @@ async def record_feedback(
             db=db,
             context_info=request.context_info
         )
-        
+
         return FeedbackResponse(
             success=True,
             message=f"Feedback recorded successfully for profile {request.profile_id}"
@@ -329,3 +333,210 @@ async def ab_test_search(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"A/B test search failed: {str(e)}")
+
+@router.get("/debug/profile/{profile_id}")
+async def debug_profile_embedding(
+    profile_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Debug a specific profile's embedding status
+    """
+    try:
+        from models.database.models import Profile
+        
+        debug_info = {
+            "profile_id": profile_id,
+            "database_status": {},
+            "chroma_status": {},
+            "search_service_status": {},
+            "feedback_service_status": {}
+        }
+        
+        # 1. Check database
+        profile = db.query(Profile).filter(Profile.id == profile_id).first()
+        if profile:
+            debug_info["database_status"] = {
+                "found": True,
+                "name": profile.name,
+                "is_active": profile.is_active,
+                "dataset_id": profile.dataset_id
+            }
+        else:
+            debug_info["database_status"] = {"found": False}
+        
+        # 2. Check search service Chroma connection
+        try:
+            search_results = search_service.collection.get(
+                ids=[profile_id],
+                include=['embeddings', 'metadatas']
+            )
+            
+            debug_info["search_service_status"] = {
+                "collection_available": bool(search_service.collection),
+                "profile_found": bool(search_results.get('ids')),
+                "has_embeddings": bool(search_results.get('embeddings')),
+                "embedding_length": len(search_results['embeddings'][0]) if search_results.get('embeddings') and search_results['embeddings'][0] else 0
+            }
+        except Exception as e:
+            debug_info["search_service_status"] = {
+                "error": str(e),
+                "collection_available": bool(search_service.collection)
+            }
+        
+        # 3. Check feedback service Chroma connection
+        try:
+            feedback_results = feedback_service.collection.get(
+                ids=[profile_id],
+                include=['embeddings', 'metadatas']
+            )
+            
+            debug_info["feedback_service_status"] = {
+                "collection_available": bool(feedback_service.collection),
+                "profile_found": bool(feedback_results.get('ids')),
+                "has_embeddings": bool(feedback_results.get('embeddings')),
+                "embedding_length": len(feedback_results['embeddings'][0]) if feedback_results.get('embeddings') and feedback_results['embeddings'][0] else 0,
+                "validation_result": feedback_service._is_valid_embedding_result(feedback_results)
+            }
+        except Exception as e:
+            debug_info["feedback_service_status"] = {
+                "error": str(e),
+                "collection_available": bool(feedback_service.collection)
+            }
+        
+        # 4. Compare collections
+        debug_info["collection_comparison"] = {
+            "search_collection": str(search_service.collection),
+            "feedback_collection": str(feedback_service.collection),
+            "are_same_object": search_service.collection is feedback_service.collection
+        }
+        
+        return debug_info
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Debug failed: {str(e)}")
+
+@router.post("/debug/test-feedback")
+async def test_feedback_recording(
+    profile_id: str,
+    query: str = "test query",
+    db: Session = Depends(get_db)
+):
+    """
+    Test feedback recording with detailed debugging
+    """
+    try:
+        result = {
+            "profile_id": profile_id,
+            "query": query,
+            "steps": []
+        }
+        
+        # Step 1: Check if profile exists and is active
+        from models.database.models import Profile
+        profile = db.query(Profile).filter(Profile.id == profile_id).first()
+        
+        if not profile:
+            result["steps"].append({
+                "step": "database_check",
+                "status": "failed",
+                "message": "Profile not found in database"
+            })
+            return result
+        
+        result["steps"].append({
+            "step": "database_check", 
+            "status": "success",
+            "message": f"Found profile: {profile.name}, Active: {profile.is_active}"
+        })
+        
+        if not profile.is_active:
+            result["steps"].append({
+                "step": "activity_check",
+                "status": "warning", 
+                "message": "Profile is inactive - this will skip embedding update"
+            })
+        
+        # Step 2: Test Chroma connection
+        try:
+            chroma_results = feedback_service.collection.get(
+                ids=[profile_id],
+                include=['embeddings', 'metadatas']
+            )
+            
+            is_valid = feedback_service._is_valid_embedding_result(chroma_results)
+            
+            result["steps"].append({
+                "step": "chroma_check",
+                "status": "success" if is_valid else "failed",
+                "message": f"Chroma validation: {is_valid}",
+                "details": {
+                    "found_in_chroma": bool(chroma_results.get('ids')),
+                    "has_embeddings": bool(chroma_results.get('embeddings')),
+                    "validation_passed": is_valid
+                }
+            })
+        except Exception as e:
+            result["steps"].append({
+                "step": "chroma_check",
+                "status": "error",
+                "message": f"Chroma error: {str(e)}"
+            })
+        
+        # Step 3: Try actual feedback recording
+        try:
+            feedback_result = feedback_service.record_user_feedback(
+                query=query,
+                profile_id=profile_id,
+                feedback_type="positive",
+                user_id="debug_test",
+                session_id="debug_session",
+                original_score=0.8,
+                db=db,
+                context_info={"debug": True}
+            )
+            
+            result["steps"].append({
+                "step": "feedback_recording",
+                "status": "success",
+                "message": "Feedback recorded successfully",
+                "result": feedback_result
+            })
+            
+        except Exception as e:
+            result["steps"].append({
+                "step": "feedback_recording", 
+                "status": "failed",
+                "message": f"Feedback recording failed: {str(e)}"
+            })
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Test failed: {str(e)}")
+
+@router.get("/debug/collections")
+async def debug_collections():
+    """
+    Compare search and feedback service collections
+    """
+    try:
+        return {
+            "search_service": {
+                "collection_available": bool(search_service.collection),
+                "collection_name": getattr(search_service.collection, 'name', 'unknown'),
+                "collection_str": str(search_service.collection)
+            },
+            "feedback_service": {
+                "collection_available": bool(feedback_service.collection), 
+                "collection_name": getattr(feedback_service.collection, 'name', 'unknown'),
+                "collection_str": str(feedback_service.collection)
+            },
+            "are_same_collection": search_service.collection is feedback_service.collection,
+            "chroma_config_comparison": {
+                "search_config": str(search_service.chroma_config),
+                "feedback_config": str(feedback_service.chroma_config)
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Collection debug failed: {str(e)}")

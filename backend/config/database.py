@@ -39,9 +39,9 @@ def get_db():
 def init_database():
 
     try:
- 
+
         create_tables()
-     
+      
         print("Database initialized successfully")
 
     except Exception as e:
@@ -77,3 +77,5 @@ def clear_postgres_data():
             
     except Exception as e:
         print(f"❌ Error clearing PostgreSQL data: {e}")
+
+
