@@ -16,7 +16,7 @@ class RedisQueryCache:
             # Test connection
             self.redis_client.ping()
             self._connected = True
-
+            self.clear_all_cache()
 
         except Exception as e:
             print(f"Redis connection failed: {e}")

@@ -13,10 +13,7 @@ from services.search_service import SearchService
 router = APIRouter()
 search_service = SearchService()
 feedback_service = FeedbackTraining()
-if search_service.collection and feedback_service.collection:
-    feedback_service.collection = search_service.collection
-    feedback_service.chroma_config = search_service.chroma_config
-    print("✅ Feedback service now shares collection with search service")
+
 
 # Pydantic models for API
 class FeedbackRequest(BaseModel):

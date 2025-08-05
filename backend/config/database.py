@@ -39,7 +39,7 @@ def get_db():
 def init_database():
 
     try:
-
+   
         create_tables()
       
         print("Database initialized successfully")

@@ -5,21 +5,24 @@ from sqlalchemy import func
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from models.database.feedback_models import UserFeedback, SearchQualityMetrics
-from config.chroma import ChromaConfig
+from models.database.models import Profile
+from config.chroma import get_chroma_instance, is_chroma_available
 
 class FeedbackTraining:
     def __init__(self):
-        """Initialize with SentenceTransformer model and Chroma collection"""
+        """Initialize with singleton Chroma collection"""
         try:
-            self.chroma_config = ChromaConfig()
-            self.collection = self.chroma_config.collection
+            self.chroma_config = get_chroma_instance()
+            self.collection = self.chroma_config.get_collection()
             self.model = SentenceTransformer('all-MiniLM-L6-v2')
+            print("✅ FeedbackTraining connected to Chroma singleton")
+            
             self.feedback_weights = {
                 'positive': 0.1,    
                 'negative': -0.05,  
             }
         except Exception as e:
-            print(f"Error initializing Chroma: {e}")
+            print(f"❌ FeedbackTraining failed to connect to Chroma: {e}")
             self.collection = None
             self.chroma_config = None
 
@@ -29,8 +32,6 @@ class FeedbackTraining:
                        db: Session, context_info: Optional[Dict] = None):
 
     
-        # NEW: Check if profile exists and is active
-        from models.database.models import Profile
         profile = db.query(Profile).filter(Profile.id == profile_id).first()
         
         if not profile:
@@ -75,20 +76,34 @@ class FeedbackTraining:
                 print(f"Extended cache for positive feedback on: {query}")
         except Exception as e:
             print(f"Error extending cache: {e}")
-    
+
     def _update_profile_embedding(self, query: str, profile_id: str, feedback_type: str, db: Session):
- 
         try:
-            # Get current profile embedding from Chroma
+            if not self.collection:
+                print(f"❌ No collection available")
+                return
+            
+            # Get current profile embedding
             current_results = self.collection.get(
                 ids=[profile_id],
                 include=['embeddings', 'metadatas']
             )
             
-            if not self._is_valid_embedding_result(current_results):
-                print(f"Invalid or missing embeddings for profile {profile_id}")
+            # FIXED: Check if embeddings exist properly
+            if not current_results or current_results.get('embeddings') is None:
+                print(f"❌ No results or embeddings from Chroma")
+                return
+                
+            # FIXED: Additional check for empty embeddings
+            embeddings = current_results.get('embeddings')
+            if isinstance(embeddings, np.ndarray) and embeddings.size == 0:
+                print(f"❌ Empty embeddings array")
                 return
             
+            if not self._is_valid_embedding_result(current_results):
+                print(f"❌ Invalid embedding result for {profile_id}")
+                return
+                
             current_embedding = np.array(current_results['embeddings'][0])
             
             # Validate the embedding array
@@ -106,49 +121,40 @@ class FeedbackTraining:
                 metadata = metadatas[0] if metadatas[0] is not None else {}
             else:
                 metadata = {}
-            
-            # Generate query embedding
+
             query_embedding = np.array(self.model.encode([query])[0])
             
             # Validate query embedding
             if query_embedding.size == 0 or np.any(np.isnan(query_embedding)):
                 print(f"Invalid query embedding for query: {query}")
-                return
-            
-            # Calculate update direction and magnitude
+                return           
             if feedback_type == 'positive':
-                # Move profile embedding slightly toward query embedding
+
                 direction = query_embedding - current_embedding
                 weight = self.feedback_weights['positive']
-            else:  # negative
-                # Move profile embedding slightly away from query embedding
+            else:  
                 direction = current_embedding - query_embedding
                 weight = abs(self.feedback_weights['negative'])
-            
-            # Apply update with small learning rate
+
             updated_embedding = current_embedding + (weight * direction)
-            
-            # Safe normalization
+
             embedding_norm = np.linalg.norm(updated_embedding)
             if embedding_norm > 1e-8:  # Avoid division by zero
                 updated_embedding = updated_embedding / embedding_norm
             else:
                 print(f"Warning: Near-zero embedding norm for profile {profile_id}, keeping original")
                 updated_embedding = current_embedding
-            
-            # Validate final embedding
+
             if np.any(np.isnan(updated_embedding)) or np.any(np.isinf(updated_embedding)):
                 print(f"Invalid updated embedding for profile {profile_id}, keeping original")
                 updated_embedding = current_embedding
-            
-            # Update metadata safely
+
             updated_metadata = {
                 **metadata,
                 'last_feedback_update': datetime.utcnow().isoformat(),
                 'feedback_count': metadata.get('feedback_count', 0) + 1
             }
-            
-            # Update in Chroma
+
             self.collection.update(
                 ids=[profile_id],
                 embeddings=[updated_embedding.tolist()],
@@ -156,14 +162,13 @@ class FeedbackTraining:
             )
             
             print(f"Successfully updated embedding for profile {profile_id} based on {feedback_type} feedback")
-            
+                
         except Exception as e:
-            print(f"Error updating profile embedding: {e}")
-            import traceback
-            traceback.print_exc()
+                print(f"Error updating profile embedding: {e}")
+                import traceback
+                traceback.print_exc()
 
     def _is_valid_embedding_result(self, results) -> bool:
-
         try:
             if results is None:
                 print("No results returned from Chroma")
@@ -173,21 +178,33 @@ class FeedbackTraining:
             if embeddings is None:
                 print("No embeddings found in results")
                 return False
-                
-            if not isinstance(embeddings, (list, tuple)):
-                print("Embeddings are not a list or tuple")
+            
+            # FIXED: Handle both formats - direct numpy array OR list of arrays
+            if isinstance(embeddings, np.ndarray):
+                # Direct numpy array from .get() method
+                first_embedding = embeddings
+                print(f"✅ VALIDATION DEBUG: Direct numpy array, shape: {embeddings.shape}")
+            elif isinstance(embeddings, (list, tuple)):
+                # List of arrays from .query() method
+                if len(embeddings) == 0:
+                    print("Empty embeddings list")
+                    return False
+                first_embedding = embeddings[0]
+                print(f"✅ VALIDATION DEBUG: List of arrays, length: {len(embeddings)}")
+            else:
+                print(f"❌ VALIDATION DEBUG: Embeddings are not array or list: {type(embeddings)}")
                 return False
-                
-            if len(embeddings) == 0:
-                print("Empty embeddings list")
-                return False
-                
-            if embeddings[0] is None:
+            
+            if first_embedding is None:
                 print("First embedding is None")
                 return False
+            
+            # Convert to numpy array if needed
+            if isinstance(first_embedding, np.ndarray):
+                embedding_array = first_embedding
+            else:
+                embedding_array = np.array(first_embedding)
                 
-            # Convert to numpy and validate
-            embedding_array = np.array(embeddings[0])
             if embedding_array.size == 0:
                 print("Embedding array is empty")
                 return False
@@ -196,11 +213,19 @@ class FeedbackTraining:
                 print("Embedding contains NaN values")
                 return False
                 
+            if np.any(np.isinf(embedding_array)):
+                print("Embedding contains Inf values")
+                return False
+                
+            print(f"✅ Embedding validation passed (dimension: {embedding_array.shape[0]})")
             return True
-            
-        except Exception:
+        
+        except Exception as e:
+            print(f"❌ Validation error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
-    
+
     def batch_retrain_embeddings(self, db: Session, days_back: int = 30):
         """Batch retraining based on accumulated feedback"""
         try:
@@ -348,40 +373,8 @@ class FeedbackTraining:
             import traceback
             traceback.print_exc()
 
-  
-    def _is_valid_embedding_result(self, results) -> bool:
-        """Helper function to safely check if Chroma results contain valid embeddings"""
-        try:
-            if results is None:
-                return False
-            
-            embeddings = results.get('embeddings')
-            if embeddings is None:
-                return False
-                
-            if not isinstance(embeddings, (list, tuple)):
-                return False
-                
-            if len(embeddings) == 0:
-                return False
-                
-            if embeddings[0] is None:
-                return False
-                
-            # Convert to numpy and validate
-            embedding_array = np.array(embeddings[0])
-            if embedding_array.size == 0:
-                return False
-                
-            if np.any(np.isnan(embedding_array)):
-                return False
-                
-            return True
-            
-        except Exception:
-            return False   
     
-    
+   
     def _invalidate_query_cache(self, query: str):
         """Remove cached results for this query to force fresh vector search"""
         try:
@@ -576,7 +569,3 @@ class FeedbackTraining:
                 "most_problematic_profiles": []
             }
         
-
-
-
-

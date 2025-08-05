@@ -7,41 +7,48 @@ import numpy as np
 from services.performance_log import create_performance_log
 from models.database.models import Profile, Dataset
 from config.redis_cache import RedisQueryCache
-from config.chroma import ChromaConfig
+from config.chroma import get_chroma_instance, is_chroma_available
 import uuid
 from services.training_service import FeedbackTraining
 redis_client = RedisQueryCache()
+
 class SearchService:   
     def __init__(self):
         try:
             self.model = SentenceTransformer('all-MiniLM-L6-v2')
-            
         except Exception as e:
             print(f"Error loading SentenceTransformer: {e}")
             self.model = None
-            
         try:
-            self.chroma_config = ChromaConfig()
-            self.collection = self.chroma_config.collection
+            self.chroma_config = get_chroma_instance()
+            self.collection = self.chroma_config.get_collection()
+            print("✅ SearchService connected to Chroma singleton")
             
-            # IMPORTANT: Initialize feedback training system
+            # Initialize feedback training system with same singleton
             self.feedback_trainer = FeedbackTraining()
         except Exception as e:
-            print(f"Error initializing Chroma: {e}")
+            print(f"❌ SearchService failed to connect to Chroma: {e}")
             self.collection = None
             self.chroma_config = None
             self.feedback_trainer = None
-    
+
     def semantic_search(self, query: str, top_k: int = 10, db: Session = None, 
                     filters: Optional[Dict] = None) -> List[Dict]:
-        """Fixed semantic search with proper conditional logic"""
+        """Fixed semantic search using Chroma singleton"""
         
-        if not self.collection:
-            raise ValueError("Chroma collection not available for search")
+
+        if not is_chroma_available():
+            raise ValueError("Chroma singleton not available for search")
         
         if not db:
             raise ValueError("Database session required")
-        
+
+
+        try:
+            collection = self.collection
+        except Exception as e:
+            print(f"❌ Failed to get collection from singleton: {e}")
+            return []
 
         results = []
         profile_dict = {}
@@ -52,39 +59,34 @@ class SearchService:
         profile_ids = []
 
         try:
-            # FIXED: Proper conditional structure
+
             if cached_feedback:
                 print(f"Cache hit for query: {query_normalized}") 
                 cached_profile_ids = [f['profile_id'] for f in cached_feedback]
-                
-                # Get only active profiles from cached IDs
+
                 profiles = db.query(Profile).filter(
                     Profile.id.in_(cached_profile_ids),
                     Profile.is_active == True
                 ).limit(top_k).all()
                 
                 active_profile_ids = [p.id for p in profiles]
-                
-                # Check if cache contains inactive profiles
+       
                 inactive_count = len(cached_profile_ids) - len(active_profile_ids)
                 if inactive_count > 0:
                     print(f"⚠️  Found {inactive_count} inactive profiles in cache, filtering them out")
-                    # Consider invalidating cache if too many inactive profiles
-                    if inactive_count / len(cached_profile_ids) > 0.3:  # More than 30% inactive
+                    if inactive_count / len(cached_profile_ids) > 0.3:  
                         print(f"🔄 Cache has too many inactive profiles, invalidating...")
                         redis_client.clear_cache(query_normalized)
-                        cached_feedback = None  # Force fresh search
-                
-                # If we still have valid cached data after filtering
+                        cached_feedback = None  
+
                 if cached_feedback and len(active_profile_ids) > 0:
                     profile_ids = active_profile_ids
                     profile_dict = {p.id: p for p in profiles}
                     similarity_scores = [1.0] * len(profile_ids)
                     print(f"✅ Using {len(profile_ids)} active profiles from cache")
                 else:
-                    cached_feedback = None  # Force vector search
-            
-            # FIXED: Vector search now runs when NO cache or cache was invalidated
+                    cached_feedback = None  
+
             if not cached_feedback:
                 print(f"Cache miss or invalidated for query: {query_normalized}, performing vector search")
                 
@@ -95,7 +97,7 @@ class SearchService:
                 # Generate query embedding
                 query_embedding = self.model.encode([query])[0].tolist()
                 
-                # Build where clause for Chroma
+
                 where_clause = {'is_active': True}
                 if filters:
                     for key, value in filters.items():
@@ -103,15 +105,14 @@ class SearchService:
                             where_clause[key] = value
                 
                 print(f"🔍 Querying Chroma with where clause: {where_clause}")
-                
-                # Query Chroma
+ 
                 search_results = self.collection.query(
                     query_embeddings=[query_embedding],
                     n_results=top_k,
                     where=where_clause if where_clause else None,
-                    include=['metadatas', 'distances']
+                    include=['metadatas', 'distances', 'embeddings']
                 )
-                
+                print(f"Chroma search results: {search_results}")
                 # Check if we got results
                 if not search_results.get('ids') or not search_results['ids'] or not search_results['ids'][0]:
                     print("❌ No results returned from Chroma")
@@ -120,15 +121,15 @@ class SearchService:
                 profile_ids = search_results['ids'][0]
                 distances = search_results.get('distances', [[]])[0]
                 
+                
                 print(f"✅ Chroma returned {len(profile_ids)} profiles: {profile_ids[:3]}...")
                 
-                # Calculate similarity scores
                 if distances:
                     similarity_scores = [1 / (1 + distance) for distance in distances]
                 else:
                     similarity_scores = [0.5] * len(profile_ids)
                 
-                # Get profile details from database
+             
                 profiles = db.query(Profile).filter(
                     Profile.id.in_(profile_ids),
                     Profile.is_active == True
@@ -137,21 +138,18 @@ class SearchService:
                 
                 print(f"✅ Found {len(profiles)} active profiles in database")
                 
-                # Cache the new results for future use
                 if len(profile_ids) > 0:
                     cache_data = [{'profile_id': pid} for pid in profile_ids]
                     redis_client.set_cached_feedback(query_normalized, cache_data, 3600)
                     print(f"✅ Cached {len(profile_ids)} results for future use")
-            
-            # Ensure score and ID lists match
+
             if len(similarity_scores) != len(profile_ids):
                 print(f"⚠️  Score length ({len(similarity_scores)}) != Profile ID length ({len(profile_ids)})")
                 if len(similarity_scores) < len(profile_ids):
                     similarity_scores.extend([0.5] * (len(profile_ids) - len(similarity_scores)))
                 else:
                     similarity_scores = similarity_scores[:len(profile_ids)]
-            
-            # Build final results
+
             for i, profile_id in enumerate(profile_ids):
                 if profile_id in profile_dict:
                     profile = profile_dict[profile_id]

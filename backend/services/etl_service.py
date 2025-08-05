@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Union, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 from models.database.models import Dataset, Profile, ProcessingJob
-from config.chroma import ChromaConfig
+from config.chroma import get_chroma_instance, is_chroma_available
 import os
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import sessionmaker
@@ -15,12 +15,18 @@ import re
 from datetime import datetime
 
 class ETLService:
-
     def __init__(self):
- 
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.collection = ChromaConfig().collection
-
+        
+        # Use singleton pattern
+        try:
+            self.chroma_config = get_chroma_instance()
+            self.collection = self.chroma_config.get_collection()
+            print("✅ ETLService connected to Chroma singleton")
+        except Exception as e:
+            print(f"❌ ETLService failed to connect to Chroma: {e}")
+            self.chroma_config = None
+            self.collection = None
 
 
     def process_dataset(self, dataset_id: str, db: Session) -> bool:
@@ -352,7 +358,7 @@ class ETLService:
         return validated
     
     def _load_profiles(self, profiles_data: List[Dict], dataset_id: str, db: Session) -> int:
-        """Enhanced load profiles with better Chroma integration"""
+        """Enhanced load profiles with singleton Chroma integration"""
         loaded_count = 0
         search_texts = []
         embeddings = []
@@ -367,16 +373,12 @@ class ETLService:
         
         for profile_data in profiles_data:
             try:
-                # Generate search text
                 base_search_text = f"{profile_data['name']} {profile_data['description']} {' '.join(profile_data['keywords'])}"
                 fhir_search_text = profile_data.get('fhir_searchable_text', '')
                 if fhir_search_text:
                     base_search_text += f" {fhir_search_text}"
 
-                # Generate embedding
                 embedding = self.model.encode([base_search_text])[0].tolist()
-
-                # Create/update database profile
                 profile = Profile(
                     id=profile_data['id'],
                     oid=profile_data.get('oid'),  
@@ -409,7 +411,7 @@ class ETLService:
                     db.add(profile)
                 
                 # Prepare for Chroma
-                profile_data['dataset_id'] = dataset_id  # Ensure dataset_id is set
+                profile_data['dataset_id'] = dataset_id
                 search_texts.append(base_search_text)
                 embeddings.append(embedding)
                 chroma_profiles.append(profile_data)
@@ -421,7 +423,6 @@ class ETLService:
                 db.rollback()
                 continue
 
-        # Commit database changes first
         try:
             db.commit()
             print(f"✅ Database commit successful: {loaded_count} profiles")
@@ -430,16 +431,14 @@ class ETLService:
             db.rollback()
             raise
 
-        # Add to Chroma
-        if self.collection and chroma_profiles:
-            print(f"🔄 Adding {len(chroma_profiles)} profiles to Chroma...")
+        if is_chroma_available() and chroma_profiles:
+            print(f"🔄 Adding {len(chroma_profiles)} profiles to Chroma singleton...")
             chroma_success = self._batch_add_to_chroma(chroma_profiles, search_texts, embeddings)
             
             if not chroma_success:
                 print(f"❌ Warning: Chroma addition failed, but database commit was successful")
-                print(f"   You may need to run a sync operation later")
         else:
-            print(f"⚠️  Chroma collection not available, skipping vector database addition")
+            print(f"⚠️  Chroma singleton not available, skipping vector database addition")
             
         return loaded_count
     
@@ -507,11 +506,9 @@ class ETLService:
             print(f"Error deactivating dataset {dataset_id}: {e}")
             db.rollback()
             return False
-    
-    
-    #chroma methods    
+  
     def _add_to_chroma(self, profile_data: Dict, search_text: str, embedding: List[float]) -> bool:
-        """Add a single profile's embedding to Chroma"""
+
         if not self.collection:
             return False
         
