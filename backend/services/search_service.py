@@ -22,12 +22,12 @@ class SearchService:
         try:
             self.chroma_config = get_chroma_instance()
             self.collection = self.chroma_config.get_collection()
-            print("✅ SearchService connected to Chroma singleton")
+            print("SearchService connected to Chroma singleton")
             
             # Initialize feedback training system with same singleton
             self.feedback_trainer = FeedbackTraining()
         except Exception as e:
-            print(f"❌ SearchService failed to connect to Chroma: {e}")
+            print(f"SearchService failed to connect to Chroma: {e}")
             self.collection = None
             self.chroma_config = None
             self.feedback_trainer = None
@@ -47,7 +47,7 @@ class SearchService:
         try:
             collection = self.collection
         except Exception as e:
-            print(f"❌ Failed to get collection from singleton: {e}")
+            print(f"Failed to get collection from singleton: {e}")
             return []
 
         results = []
@@ -73,9 +73,9 @@ class SearchService:
        
                 inactive_count = len(cached_profile_ids) - len(active_profile_ids)
                 if inactive_count > 0:
-                    print(f"⚠️  Found {inactive_count} inactive profiles in cache, filtering them out")
+                    print(f"Found {inactive_count} inactive profiles in cache, filtering them out")
                     if inactive_count / len(cached_profile_ids) > 0.3:  
-                        print(f"🔄 Cache has too many inactive profiles, invalidating...")
+                        print(f"Cache has too many inactive profiles, invalidating...")
                         redis_client.clear_cache(query_normalized)
                         cached_feedback = None  
 
@@ -83,7 +83,7 @@ class SearchService:
                     profile_ids = active_profile_ids
                     profile_dict = {p.id: p for p in profiles}
                     similarity_scores = [1.0] * len(profile_ids)
-                    print(f"✅ Using {len(profile_ids)} active profiles from cache")
+                    print(f"Using {len(profile_ids)} active profiles from cache")
                 else:
                     cached_feedback = None  
 
@@ -93,18 +93,12 @@ class SearchService:
                 if not self.model:
                     print("SentenceTransformer model not available")
                     return []
-                
-                # Generate query embedding
                 query_embedding = self.model.encode([query])[0].tolist()
-                
-
                 where_clause = {'is_active': True}
                 if filters:
                     for key, value in filters.items():
                         if key in ['dataset_id', 'resource_type', 'category', 'keywords']:
                             where_clause[key] = value
-                
-                print(f"🔍 Querying Chroma with where clause: {where_clause}")
  
                 search_results = self.collection.query(
                     query_embeddings=[query_embedding],
@@ -113,38 +107,35 @@ class SearchService:
                     include=['metadatas', 'distances', 'embeddings']
                 )
                 print(f"Chroma search results: {search_results}")
-                # Check if we got results
                 if not search_results.get('ids') or not search_results['ids'] or not search_results['ids'][0]:
-                    print("❌ No results returned from Chroma")
+                    print("No results returned from Chroma")
                     return []
                 
                 profile_ids = search_results['ids'][0]
                 distances = search_results.get('distances', [[]])[0]
+
                 
-                
-                print(f"✅ Chroma returned {len(profile_ids)} profiles: {profile_ids[:3]}...")
+                print(f"Chroma returned {len(profile_ids)} profiles: {profile_ids[:3]}...")
                 
                 if distances:
                     similarity_scores = [1 / (1 + distance) for distance in distances]
                 else:
                     similarity_scores = [0.5] * len(profile_ids)
-                
-             
                 profiles = db.query(Profile).filter(
                     Profile.id.in_(profile_ids),
                     Profile.is_active == True
                 ).all()
                 profile_dict = {p.id: p for p in profiles}
                 
-                print(f"✅ Found {len(profiles)} active profiles in database")
+                print(f"Found {len(profiles)} active profiles in database")
                 
                 if len(profile_ids) > 0:
                     cache_data = [{'profile_id': pid} for pid in profile_ids]
                     redis_client.set_cached_feedback(query_normalized, cache_data, 3600)
-                    print(f"✅ Cached {len(profile_ids)} results for future use")
+                    print(f"Cached {len(profile_ids)} results for future use")
 
             if len(similarity_scores) != len(profile_ids):
-                print(f"⚠️  Score length ({len(similarity_scores)}) != Profile ID length ({len(profile_ids)})")
+                print(f"Score length ({len(similarity_scores)}) != Profile ID length ({len(profile_ids)})")
                 if len(similarity_scores) < len(profile_ids):
                     similarity_scores.extend([0.5] * (len(profile_ids) - len(similarity_scores)))
                 else:
@@ -175,13 +166,13 @@ class SearchService:
                         'fhir_searchable_text': profile.fhir_searchable_text or []
                     })
                 else:
-                    print(f"⚠️  Profile {profile_id} not found in database or inactive")
+                    print(f"Profile {profile_id} not found in database or inactive")
             
-            print(f"✅ Returning {len(results)} total results")
+            print(f"Returning {len(results)} total results")
             return results
         
         except Exception as e:
-            print(f"❌ Error in semantic search: {e}")
+            print(f"Error in semantic search: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -408,28 +399,20 @@ class SearchService:
     def record_feedback(self, query: str, profile_id: str, feedback_type: str, 
                        user_id: str, session_id: str, original_score: float, 
                        db: Session, context_info: Optional[Dict] = None):
-        """
-        Record feedback and update vector database with smart cache invalidation
-        """
+   
         if not self.feedback_trainer:
             print("Feedback trainer not available")
             return {"status": "error", "message": "Feedback system not initialized"}
-        
         try:
-            # Record feedback and update embeddings
             self.feedback_trainer.record_user_feedback(
                 query, profile_id, feedback_type, user_id, session_id, 
                 original_score, db, context_info
             )
-            
-            # Smart cache invalidation based on feedback type
             self._handle_cache_invalidation(query, feedback_type)
-            
             return {
                 "status": "success", 
                 "message": f"{feedback_type} feedback recorded and embeddings updated"
             }
-            
         except Exception as e:
             print(f"Error recording feedback: {e}")
             return {"status": "error", "message": str(e)}
@@ -441,32 +424,21 @@ class SearchService:
             query_normalized = query.lower().strip()
             
             if feedback_type == 'negative':
-                # Negative feedback: invalidate immediately
                 redis_client.clear_cache(query_normalized)
                 print(f"Cache invalidated for negative feedback on query: {query}")
-                
             elif feedback_type == 'positive':
-                # Positive feedback: extend cache life
                 cached_data = redis_client.get_cached_feedback(query_normalized)
                 if cached_data:
-                    # Extend cache by 24 hours
                     redis_client.set_cached_feedback(query_normalized, cached_data, 86400)
                     print(f"Cache extended for positive feedback on query: {query}")
-                    
-            # For neutral feedback, do nothing to cache
-            
         except Exception as e:
             print(f"Error handling cache invalidation: {e}")
 
-    # NEW: Batch retraining method
     def run_batch_retraining(self, db: Session, days_back: int = 30):
         """Run batch retraining of embeddings"""
         if self.feedback_trainer:
             self.feedback_trainer.batch_retrain_embeddings(db, days_back)
-            
-            # Clear all cache after batch retraining
             try:
-  
                 redis_client.clear_all_cache()
                 print("All cache cleared after batch retraining")
             except Exception as e:
@@ -474,49 +446,37 @@ class SearchService:
         else:
             print("Feedback trainer not available for batch retraining")
 
-    # NEW: Get learning statistics
     def get_learning_stats(self, db: Session) -> Dict:
         """Get statistics about the learning system"""
         if self.feedback_trainer:
             return self.feedback_trainer.get_learning_stats(db)
         else:
             return {"error": "Feedback trainer not available"}
-
     def get_feedback_stats(self, db: Session, days: int = 30) -> Dict:
-        """Get feedback statistics"""
         if self.feedback_trainer:
             return self.feedback_trainer.get_feedback_stats_simple(db, days)
         else:
             return {"error": "Feedback trainer not available"}
-        
+    
     def cleanup_inactive_profiles_from_cache(db: Session):
-        try:
-  
-            
+        try: 
             if not redis_client.is_connected():
                 print("❌ Redis not connected")
                 return
-            
-            # Get all cache keys
             cache_keys = redis_client.keyspy("query:*")
             cleaned_count = 0
             
             for cache_key in cache_keys:
                 try:
-                    # Get cached data
                     cached_data = redis_client.get_cached_feedback(cache_key.replace("query:", ""))
                     if not cached_data:
                         continue
-                    
-                    # Check if any profiles are inactive
                     profile_ids = [f['profile_id'] for f in cached_data]
                     active_profiles = db.query(Profile.id).filter(
                         Profile.id.in_(profile_ids),
                         Profile.is_active == True
                     ).all()
                     active_profile_ids = [p.id for p in active_profiles]
-                    
-                    # If some profiles are inactive, clear this cache entry
                     if len(active_profile_ids) < len(profile_ids):
                         redis_client.redis_client.delete(cache_key)
                         cleaned_count += 1

@@ -101,7 +101,7 @@ async def simple_form_search(
     formset_id: Optional[str] = Query(None, description="Filter by formset ID"),
     db: Session = Depends(get_db)
 ):
-    """Simple GET endpoint for form search with query parameters"""
+
     try:
         search_service = FormLookupService()
         
@@ -187,55 +187,7 @@ async def filter_forms(request: FilterSearchRequest, db: Session = Depends(get_d
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Filter search failed: {str(e)}")
 
-@router.get("/forms/domains")
-async def get_available_domains(db: Session = Depends(get_db)):
-    """Get list of available domains"""
-    try:
-        search_service = FormLookupService()
-        domains = search_service.get_available_domains(db)
-        
-        return {
-            "domains": domains,
-            "total_count": len(domains)
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get domains: {str(e)}")
 
-@router.get("/forms/screening-tools")
-async def get_available_screening_tools(db: Session = Depends(get_db)):
-    """Get list of available screening tools"""
-    try:
-        search_service = FormLookupService()
-        tools = search_service.get_available_screening_tools(db)
-        
-        return {
-            "screening_tools": tools,
-            "total_count": len(tools)
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get screening tools: {str(e)}")
-
-@router.get("/forms/search/domain/{domain}")
-async def search_by_domain(
-    domain: str, 
-    limit: int = Query(50, description="Maximum number of results"),
-    db: Session = Depends(get_db)
-):
-    """Search forms by specific domain (e.g., 'Homelessness', 'Mental Health')"""
-    try:
-        search_service = FormLookupService()
-        results = search_service.search_by_domain(domain, db, limit)
-        
-        return {
-            "domain": domain,
-            "results": results,
-            "total_results": len(results)
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Domain search failed: {str(e)}")
 
 @router.get("/forms/stats")
 async def get_search_statistics(db: Session = Depends(get_db)):

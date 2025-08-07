@@ -61,7 +61,7 @@ class ChromaConfig:
         self.connection_mode = "failed"
 
     def _try_http_connection(self, collection_name: str) -> bool:
-        """Try to connect to Chroma HTTP server (Docker or remote)"""
+
         host = os.getenv('CHROMA_HOST', 'localhost')
         port = os.getenv('CHROMA_PORT', '8001')
  
@@ -91,7 +91,7 @@ class ChromaConfig:
                 return True
                     
         except Exception as e:
-            print(f"❌ HTTP connection to {host}:{port} failed: {e}")
+            print(f"HTTP connection to {host}:{port} failed: {e}")
         return False
 
     def _try_persistent_client(self, collection_name: str) -> bool:
@@ -112,11 +112,11 @@ class ChromaConfig:
             self.collection = self._get_or_create_collection(collection_name)
             if self.collection:
                 self.connection_mode = "persistent_local"
-                print(f"✅ Using persistent Chroma at {persist_directory}")
+                print(f"Using persistent Chroma at {persist_directory}")
                 return True
                 
         except Exception as e:
-            print(f"❌ Persistent client failed: {e}")
+            print(f"Persistent client failed: {e}")
             
         return False
 
@@ -153,7 +153,7 @@ class ChromaConfig:
             
         except Exception:
             try:
-                # Create new collection if it doesn't exist
+
                 collection = self.chroma_client.create_collection(
                     name=collection_name,
                     metadata={
@@ -161,7 +161,7 @@ class ChromaConfig:
                         "hnsw:space": "cosine" 
                     }
                 )
-                print(f"📁 Created new collection: {collection_name}")
+                print(f"Created new collection: {collection_name}")
                 return collection
                 
             except Exception as e:
@@ -199,7 +199,7 @@ class ChromaConfig:
         }
 
     def get_status(self) -> dict:
-        """Get status information about the Chroma instance"""
+
         if not self.is_available():
             return {
                 "status": "unavailable",
@@ -233,7 +233,6 @@ class ChromaConfig:
             }
 
     def test_connection(self) -> bool:
-        """Test if Chroma is properly initialized and working"""
         try:
             if not self.collection:
                 print("❌ No collection available for testing")
@@ -249,7 +248,6 @@ class ChromaConfig:
             return False
 
     def clear_collection(self, collection_name: str = None):
-        """Clear a specific collection or the current collection"""
         try:
             if collection_name:
                 collection = self.chroma_client.get_collection(collection_name)
@@ -260,7 +258,7 @@ class ChromaConfig:
                 all_items = collection.get()
                 if all_items['ids']:
                     collection.delete(ids=all_items['ids'])
-                    print(f"✅ Cleared {len(all_items['ids'])} items from {collection.name}")
+                    print(f"Cleared {len(all_items['ids'])} items from {collection.name}")
                 else:
                     print(f"ℹ️  Collection {collection.name} was already empty")
             else:
@@ -318,7 +316,6 @@ class ChromaConfig:
     
     @classmethod
     def reset_singleton(cls):
-        """Reset the singleton instance (useful for testing)"""
         with cls._lock:
             if cls._instance:
                 # Clean up existing instance
@@ -361,7 +358,6 @@ class ChromaConfig:
             }
         }
         
-        # Test connectivity
         try:
             if self.chroma_client and hasattr(self.chroma_client, 'heartbeat'):
                 diagnostics["connectivity"] = {
@@ -375,7 +371,6 @@ class ChromaConfig:
         return diagnostics
 
 
-# Convenience functions to get the singleton instance
 def get_chroma_instance() -> ChromaConfig:
     """Get the singleton ChromaConfig instance"""
     return ChromaConfig()

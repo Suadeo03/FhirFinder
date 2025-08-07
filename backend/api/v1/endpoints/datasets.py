@@ -178,39 +178,6 @@ async def process_dataset(dataset_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
     
 
-@router.post("/datasets/{dataset_id}/form_process", response_model=ProcessResponse)
-async def process_dataset(dataset_id: str, db: Session = Depends(get_db)):
-    """Process an uploaded dataset"""
-    try:
-
-        dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
-        if not dataset:
-            raise HTTPException(status_code=404, detail="Dataset not found")
-        
-        if dataset.status not in ["uploaded", "failed"]:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Dataset is in '{dataset.status}' status and cannot be processed"
-            )
- 
-        success = etl_service.process_dataset(dataset_id, db)
-        
-        if success:
-            return ProcessResponse(
-                success=True,
-                message=f"Dataset processed successfully. {dataset.record_count} profiles loaded.",
-                dataset_id=dataset_id
-            )
-        else:
-            return ProcessResponse(
-                success=False,
-                message=f"Processing failed: {dataset.error_message}",
-                dataset_id=dataset_id
-            )
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
-
 @router.put("/datasets/{dataset_id}/activate", response_model=ProcessResponse)
 async def activate_dataset(dataset_id: str, db: Session = Depends(get_db)):
     """Activate a processed dataset (make it the active search dataset)"""
@@ -225,7 +192,6 @@ async def activate_dataset(dataset_id: str, db: Session = Depends(get_db)):
                 detail=f"Dataset must be in 'ready' status to activate. Current status: {dataset.status}"
             )
         
-        # Activate the dataset
         success = etl_service.activate_dataset(dataset_id, db)
         
         if success:

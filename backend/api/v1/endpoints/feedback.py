@@ -61,17 +61,13 @@ class SearchResponse(BaseModel):
     applied_feedback: bool
     session_id: str
 
-# Initialize search service
-
-
+"""
 @router.post("/search/with-feedback", response_model=SearchResponse)
 async def search_with_feedback(
     request: SearchWithFeedbackRequest,
     db: Session = Depends(get_db)
 ):
-    """
-    Perform search with feedback integration
-    """
+
     try:
         # Perform the appropriate search
         if request.search_type == "semantic":
@@ -127,16 +123,13 @@ async def search_with_feedback(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+"""
 
 @router.post("/feedback/record", response_model=FeedbackResponse)
 async def record_feedback(
     request: FeedbackRequest,
     db: Session = Depends(get_db)
 ):
-    """
-    Record user feedback for a search result
-    """
-
     try:
         # Validate feedback type
         if request.feedback_type not in ['positive', 'negative', 'neutral']:
@@ -179,20 +172,6 @@ async def get_feedback_stats(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get feedback stats: {str(e)}")
 
-@router.post("/feedback/retrain")
-async def trigger_retraining(
-    batch_size: int = 100,
-    db: Session = Depends(get_db)
-):
-    """
-    Trigger retraining of embeddings based on accumulated feedback
-    This should be protected and only accessible to admin users
-    """
-    try:
-        search_service.retrain_embeddings(db, batch_size)
-        return {"success": True, "message": "Retraining completed successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Retraining failed: {str(e)}")
 
 @router.get("/search/quality-metrics")
 async def get_search_quality_metrics(
@@ -205,8 +184,7 @@ async def get_search_quality_metrics(
     Get search quality metrics for specific queries or profiles
     """
     try:
-        # This would query your SearchQualityMetrics table
-        # For now, return mock data
+
         return {
             "metrics": [],
             "summary": {
@@ -218,7 +196,7 @@ async def get_search_quality_metrics(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get quality metrics: {str(e)}")
 
-# Additional endpoint for bulk feedback (useful for A/B testing)
+
 @router.post("/feedback/bulk")
 async def record_bulk_feedback(
     feedbacks: List[FeedbackRequest],
@@ -250,95 +228,13 @@ async def record_bulk_feedback(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Bulk feedback recording failed: {str(e)}")
 
-# Endpoint for getting search suggestions based on feedback
-@router.get("/search/suggestions")
-async def get_search_suggestions(
-    query: str,
-    limit: int = 5,
-    db: Session = Depends(get_db)
-):
-    """
-    Get search suggestions based on successful past searches
-    """
-    try:
-        # This would analyze past positive feedback to suggest better queries
-        # For now, return mock suggestions
-        return {
-            "suggestions": [
-                f"{query} profile",
-                f"{query} template",
-                f"{query} specification"
-            ],
-            "based_on_feedback": True
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get suggestions: {str(e)}")
-
-# Endpoint for A/B testing different search algorithms
-@router.post("/search/ab-test")
-async def ab_test_search(
-    request: SearchWithFeedbackRequest,
-    algorithm_variant: str = "standard",  # 'standard', 'experimental'
-    db: Session = Depends(get_db)
-):
-    """
-    Perform search with A/B testing variants
-    """
-    try:
-        # Implement different search variants for testing
-        if algorithm_variant == "experimental":
-            # Use different weights or algorithms
-            request.semantic_weight = 0.8  # More emphasis on semantic
-        
-        # Perform search
-        if request.search_type == "hybrid":
-            results = search_service.hybrid_search(
-                query=request.query,
-                top_k=request.top_k,
-                db=db,
-                semantic_weight=request.semantic_weight,
-                filters=request.filters,
-                apply_feedback=request.apply_feedback
-            )
-        elif request.search_type == "semantic":
-            results = search_service.semantic_search(
-                query=request.query,
-                top_k=request.top_k,
-                db=db,
-                filters=request.filters,
-                apply_feedback=request.apply_feedback
-            )
-        else:
-            results = search_service.traditional_search(
-                query=request.query,
-                db=db,
-                top_k=request.top_k,
-                filters=request.filters,
-                apply_feedback=request.apply_feedback
-            )
-        
-        # Add A/B test metadata to results
-        for result in results:
-            result['ab_variant'] = algorithm_variant
-        
-        return {
-            "results": results,
-            "variant": algorithm_variant,
-            "session_id": request.session_id,
-            "query": request.query
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"A/B test search failed: {str(e)}")
 
 @router.get("/debug/profile/{profile_id}")
 async def debug_profile_embedding(
     profile_id: str,
     db: Session = Depends(get_db)
 ):
-    """
-    Debug a specific profile's embedding status
-    """
+
     try:
         from models.database.models import Profile
         
@@ -349,8 +245,7 @@ async def debug_profile_embedding(
             "search_service_status": {},
             "feedback_service_status": {}
         }
-        
-        # 1. Check database
+
         profile = db.query(Profile).filter(Profile.id == profile_id).first()
         if profile:
             debug_info["database_status"] = {
@@ -362,7 +257,6 @@ async def debug_profile_embedding(
         else:
             debug_info["database_status"] = {"found": False}
         
-        # 2. Check search service Chroma connection
         try:
             search_results = search_service.collection.get(
                 ids=[profile_id],
@@ -380,8 +274,7 @@ async def debug_profile_embedding(
                 "error": str(e),
                 "collection_available": bool(search_service.collection)
             }
-        
-        # 3. Check feedback service Chroma connection
+
         try:
             feedback_results = feedback_service.collection.get(
                 ids=[profile_id],
@@ -400,8 +293,7 @@ async def debug_profile_embedding(
                 "error": str(e),
                 "collection_available": bool(feedback_service.collection)
             }
-        
-        # 4. Compare collections
+
         debug_info["collection_comparison"] = {
             "search_collection": str(search_service.collection),
             "feedback_collection": str(feedback_service.collection),
@@ -413,127 +305,4 @@ async def debug_profile_embedding(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Debug failed: {str(e)}")
 
-@router.post("/debug/test-feedback")
-async def test_feedback_recording(
-    profile_id: str,
-    query: str = "test query",
-    db: Session = Depends(get_db)
-):
-    """
-    Test feedback recording with detailed debugging
-    """
-    try:
-        result = {
-            "profile_id": profile_id,
-            "query": query,
-            "steps": []
-        }
-        
-        # Step 1: Check if profile exists and is active
-        from models.database.models import Profile
-        profile = db.query(Profile).filter(Profile.id == profile_id).first()
-        
-        if not profile:
-            result["steps"].append({
-                "step": "database_check",
-                "status": "failed",
-                "message": "Profile not found in database"
-            })
-            return result
-        
-        result["steps"].append({
-            "step": "database_check", 
-            "status": "success",
-            "message": f"Found profile: {profile.name}, Active: {profile.is_active}"
-        })
-        
-        if not profile.is_active:
-            result["steps"].append({
-                "step": "activity_check",
-                "status": "warning", 
-                "message": "Profile is inactive - this will skip embedding update"
-            })
-        
-        # Step 2: Test Chroma connection
-        try:
-            chroma_results = feedback_service.collection.get(
-                ids=[profile_id],
-                include=['embeddings', 'metadatas']
-            )
-            
-            is_valid = feedback_service._is_valid_embedding_result(chroma_results)
-            
-            result["steps"].append({
-                "step": "chroma_check",
-                "status": "success" if is_valid else "failed",
-                "message": f"Chroma validation: {is_valid}",
-                "details": {
-                    "found_in_chroma": bool(chroma_results.get('ids')),
-                    "has_embeddings": bool(chroma_results.get('embeddings')),
-                    "validation_passed": is_valid
-                }
-            })
-        except Exception as e:
-            result["steps"].append({
-                "step": "chroma_check",
-                "status": "error",
-                "message": f"Chroma error: {str(e)}"
-            })
-        
-        # Step 3: Try actual feedback recording
-        try:
-            feedback_result = feedback_service.record_user_feedback(
-                query=query,
-                profile_id=profile_id,
-                feedback_type="positive",
-                user_id="debug_test",
-                session_id="debug_session",
-                original_score=0.8,
-                db=db,
-                context_info={"debug": True}
-            )
-            
-            result["steps"].append({
-                "step": "feedback_recording",
-                "status": "success",
-                "message": "Feedback recorded successfully",
-                "result": feedback_result
-            })
-            
-        except Exception as e:
-            result["steps"].append({
-                "step": "feedback_recording", 
-                "status": "failed",
-                "message": f"Feedback recording failed: {str(e)}"
-            })
-        
-        return result
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Test failed: {str(e)}")
 
-@router.get("/debug/collections")
-async def debug_collections():
-    """
-    Compare search and feedback service collections
-    """
-    try:
-        return {
-            "search_service": {
-                "collection_available": bool(search_service.collection),
-                "collection_name": getattr(search_service.collection, 'name', 'unknown'),
-                "collection_str": str(search_service.collection)
-            },
-            "feedback_service": {
-                "collection_available": bool(feedback_service.collection), 
-                "collection_name": getattr(feedback_service.collection, 'name', 'unknown'),
-                "collection_str": str(feedback_service.collection)
-            },
-            "are_same_collection": search_service.collection is feedback_service.collection,
-            "chroma_config_comparison": {
-                "search_config": str(search_service.chroma_config),
-                "feedback_config": str(feedback_service.chroma_config)
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Collection debug failed: {str(e)}")

@@ -102,21 +102,20 @@ class SearchSession(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-class QueryEmbedding(Base):
-    """
-    Store embeddings for frequently searched queries to improve performance
-    """
+class FeedbackTrainingEmbeddings(Base):
+  
     __tablename__ = "query_embeddings"
     
     id = Column(Integer, primary_key=True, index=True)
+    
     query_normalized = Column(Text, nullable=False, unique=True, index=True)
     embedding_vector = Column(JSON, nullable=False)  # Store as JSON array
     
-    # Usage statistics
+   
     search_count = Column(Integer, default=1)
     last_searched = Column(DateTime, default=datetime.utcnow)
     
-    # Feedback-based adjustments
+ 
     positive_feedback_count = Column(Integer, default=0)
     negative_feedback_count = Column(Integer, default=0)
     embedding_version = Column(Integer, default=1)  # Track embedding updates
@@ -159,40 +158,4 @@ class FeedbackTrainingBatch(Base):
     # Training configuration
     training_config = Column(JSON, nullable=True)
     training_logs = Column(Text, nullable=True)
-
-class SearchExperiment(Base):
-    """
-    Track A/B tests and experiments on search algorithms
-    """
-    __tablename__ = "search_experiments"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    experiment_id = Column(String(100), nullable=False, unique=True, index=True)
-    experiment_name = Column(String(200), nullable=False)
-    
-    # Experiment configuration
-    algorithm_variant = Column(String(50), nullable=False)
-    configuration = Column(JSON, nullable=False)
-    
-    # Experiment status
-    status = Column(String(20), default='active')  # 'active', 'paused', 'completed'
-    traffic_percentage = Column(Float, default=50.0)  # Percentage of traffic to route to this variant
-    
-    # Results tracking
-    total_sessions = Column(Integer, default=0)
-    total_queries = Column(Integer, default=0)
-    total_feedback = Column(Integer, default=0)
-    positive_feedback_rate = Column(Float, default=0.0)
-    
-    # Statistical significance
-    p_value = Column(Float, nullable=True)
-    confidence_interval_lower = Column(Float, nullable=True)
-    confidence_interval_upper = Column(Float, nullable=True)
-    is_significant = Column(Boolean, default=False)
-    
-    # Timestamps
-    start_date = Column(DateTime, default=datetime.utcnow, nullable=False)
-    end_date = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
