@@ -54,29 +54,14 @@ async def search_forms(request: SearchRequest, db: Session = Depends(get_db)):
     try:
         search_service = FormLookupService()
         
-        # Determine search method based on search_type
-        if request.search_type == "semantic":
-            results = search_service.semantic_search(
+ 
+        results = search_service.semantic_search(
                 query=request.query, 
                 top_k=request.limit, 
                 db=db, 
                 filters=request.filters
             )
-        elif request.search_type == "traditional":
-            results = search_service.traditional_search(
-                query=request.query, 
-                db=db, 
-                top_k=request.limit, 
-                filters=request.filters
-            )
-        else:  # hybrid (default)
-            results = search_service.hybrid_search(
-                query=request.query, 
-                top_k=request.limit, 
-                db=db, 
-                semantic_weight=request.semantic_weight or 0.7,
-                filters=request.filters
-            )
+      
         
         stats = search_service.get_search_stats(db)
         
@@ -84,7 +69,7 @@ async def search_forms(request: SearchRequest, db: Session = Depends(get_db)):
             query=request.query,
             results=results,
             total_results=len(results),
-            search_type=request.search_type or "hybrid",
+            search_type=request.search_type or "semantic",
             search_stats=stats
         )
         

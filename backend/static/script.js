@@ -330,12 +330,27 @@ async function sendFeedbackResponse(feedbackType) {
     }
     //modify based on current tab
     const query = getCurrentQuery();
-    const id = currentResult.results[0].id;//change to id
-    const originalScore = currentResult.results[0].similarity_score || 0.0;
-    const context_info = currentResult.results[0].use_contexts[0] || '';
+    let id, originalScore, context_info;
     const feedbackService = new FeedbackService();
-    
+    if (currentTab === 'resources') {
+        id = currentResult.results[0].id;
+        originalScore = currentResult.results[0].similarity_score || 0.0;
+        context_info = currentResult.results[0].use_contexts?.[0] || '';
+    } else if (currentTab === 'form') {
+        id = currentResult.results[0].id;
+        originalScore = currentResult.results[0].similarity_score || 0.0;
+        context_info = '';
+    } else {
+        // Handle other tabs (mapping, search, etc.)
+        id = currentResult.results?.[0]?.id || currentResult.data?.[0]?.id;
+        originalScore = currentResult.results?.[0]?.similarity_score || currentResult.data?.[0]?.similarity_score || 0.0;
+        context_info = '';
+    }
     // Customize messages based on feedback type
+    if (!id) {
+        showResult('<div class="error">Unable to identify result for feedback.</div>');
+        return;
+    }
     const messages = {
         positive: {
             success: 'Thank you for your positive feedback!',
@@ -360,6 +375,7 @@ async function sendFeedbackResponse(feedbackType) {
         showResult(`<div class="error">${messages[feedbackType].error}</div>`);
     }
 }
+
 
 function loadCode() {
     showResult('<div class="loading">🔄 Loading code...</div>');

@@ -10,6 +10,7 @@ from config.redis_cache import RedisQueryCache
 from config.chroma import get_chroma_instance, is_chroma_available
 import uuid
 from services.training_service import FeedbackTraining
+from services.named_entity_removal_service import PHIQueryScrubber
 redis_client = RedisQueryCache()
 
 class SearchService:   
@@ -24,7 +25,7 @@ class SearchService:
             self.collection = self.chroma_config.get_collection()
             print("SearchService connected to Chroma singleton")
             
-            # Initialize feedback training system with same singleton
+            self.phi_scrubber = PHIQueryScrubber(model_name="en_core_web_sm")
             self.feedback_trainer = FeedbackTraining()
         except Exception as e:
             print(f"SearchService failed to connect to Chroma: {e}")
@@ -34,8 +35,10 @@ class SearchService:
 
     def semantic_search(self, query: str, top_k: int = 10, db: Session = None, 
                     filters: Optional[Dict] = None) -> List[Dict]:
-        """Fixed semantic search using Chroma singleton"""
-        
+
+        phi_scrubbed_query = self.phi_scrubber.scrub_query(query)
+        if not phi_scrubbed_query or not phi_scrubbed_query.strip():
+            pass
 
         if not is_chroma_available():
             raise ValueError("Chroma singleton not available for search")
@@ -52,7 +55,7 @@ class SearchService:
 
         results = []
         profile_dict = {}
-        query_normalized = query.lower().strip()
+        query_normalized = phi_scrubbed_query.lower().strip()
         
         cached_feedback = redis_client.get_cached_feedback(query_normalized)
         similarity_scores = []
