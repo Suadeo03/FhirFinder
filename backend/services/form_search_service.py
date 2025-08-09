@@ -7,10 +7,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from services.performance_log import create_performance_log
 from services.training_service_forms import FeedbackTrainingForm
-from models.database.form_model import Form, Formset, FormProcessingJob
+from models.database.form_model import Form, Formset
+from services.named_entity_removal_service import PHIQueryScrubber
 from config.redis_cache import RedisQueryCache
 from config.chroma import get_chroma_instance
 import uuid
+import logging
 redis_client = RedisQueryCache()
 
 class FormLookupService:   
@@ -23,9 +25,7 @@ class FormLookupService:
         try:
             self.chroma_config = get_chroma_instance()
             self.collection = self.chroma_config.get_collection()
-            print("SearchService connected to Chroma singleton")
-            
-            # Initialize feedback training system with same singleton
+            self.phi_scrubber = PHIQueryScrubber(model_name="en_core_web_sm")
             self.feedback_trainer = FeedbackTrainingForm()
         except Exception as e:
             print(f"SearchService failed to connect to Chroma: {e}")
@@ -35,9 +35,16 @@ class FormLookupService:
 
   
     def semantic_search(self, query: str, top_k: int = 10, db: Session = None, filters: Optional[Dict] = None) -> List[Dict]:
-        """
-        Semantic search using Chroma vector database for form data
-        """
+        phi_scrubbed_query = self.phi_scrubber.scrub_query(query)
+        print(f"PHI scrubbed query: '{phi_scrubbed_query}'")
+        if not phi_scrubbed_query or not phi_scrubbed_query.strip():
+            logging.warning(f"Query was entirely PHI or empty after scrubbing: '{query}'")
+            return []  # Return empty results instead of proceeding
+        
+      
+        if phi_scrubbed_query != query:
+            logging.info(f"PHI scrubbed from query. Original: '{query}' -> Scrubbed: '{phi_scrubbed_query}'")
+
         if not self.collection:
             raise ValueError("Chroma collection not available for search")
         
@@ -45,52 +52,101 @@ class FormLookupService:
             raise ValueError("Database session required")
         
 
-        if redis_client.is_connected():
-            query_normalized = query.lower().strip()
-            
-            cached_results = redis_client.get_cached_feedback(query_normalized)
-            if cached_results:
-                print(f"Cache hit for query: {query}")
-                return cached_results
-            else:
-                print(f"Cache miss for query: {query}")
+        results = []
+        form_dict = {}
+        query_normalized = phi_scrubbed_query.lower().strip()
+        
+        cached_feedback = redis_client.get_cached_feedback(query_normalized)
+        similarity_scores = []
+        form_ids = []        
+        forms = []
+        
             
         try:
-    
-            query_embedding = self.model.encode([query])[0].tolist()
-            
-  
-            where_clause = {'is_active': True}
-            if filters:
-                for key, value in filters.items():
-                    if key in ['formset_id', 'domain', 'screening_tool','question','answer_concept']:
-                        where_clause[key] = value
+            if cached_feedback:
+                print(f"Cache hit for query: {query_normalized}") 
+                cached_profile_ids = [f['form_id'] for f in cached_feedback]
+
+                forms = db.query(Form).filter(
+                    Form.id.in_(cached_profile_ids),
+                    Form.is_active == True
+                ).limit(top_k).all()
+                
+                active_profile_ids = [f.id for f in forms]
+                
+                inactive_count = len(cached_profile_ids) - len(active_profile_ids)
+                if inactive_count > 0:
+                    print(f"Found {inactive_count} inactive profiles in cache, filtering them out")
+                    if inactive_count / len(cached_profile_ids) > 0.3:  
+                        print(f"Cache has too many inactive profiles, invalidating...")
+                        redis_client.clear_cache(query_normalized)
+                        cached_feedback = None  
+
+                if cached_feedback and len(active_profile_ids) > 0:
+                    form_ids= active_profile_ids
+                    form_dict = {f.id: f for f in forms}
+                    similarity_scores = [1.0] * len(form_ids)
+                    print(f"Using {len(form_ids)} active profiles from cache")
+                else:
+                    cached_feedback = None  
+
+            if not cached_feedback:
+                print(f"Cache miss or invalidated for query: {query_normalized}, performing vector search")
+                
+                if not self.model:
+                        print("SentenceTransformer model not available")
+                        return []
+
+                query_embedding = self.model.encode([phi_scrubbed_query])[0].tolist()
+                where_clause = {'is_active': True}
+                if filters:
+                    for key, value in filters.items():
+                        if key in ['formset_id', 'domain', 'screening_tool','question','answer_concept']:
+                            where_clause[key] = value
+                
+
+                search_results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=top_k,
+                    where=where_clause if where_clause else None,
+                    include=['metadatas', 'distances', 'embeddings']
+                )
+                
+                if not search_results['ids'] or not search_results['ids'][0]:
+                    return []
+                
+                print(f"Chroma search results: {search_results}")
+                if not search_results.get('ids') or not search_results['ids'] or not search_results['ids'][0]:
+                    print("No results returned from Chroma")
+                    return []
+                
+                form_ids = search_results['ids'][0]
+                distances = search_results.get('distances', [[]])[0]
+                
+                if distances:
+                        similarity_scores = [1 / (1 + distance) for distance in distances]
+                else:
+                    similarity_scores = [0.5] * len(form_ids)
+                forms = db.query(Form).filter(
+                        Form.id.in_(form_ids),
+                        Form.is_active == True
+                    ).all()
+                form_dict = {f.id: f for f in forms}
+                print(forms)
+                if len(form_ids) > 0:
+                        cache_data = [{'form_id': fid} for fid in form_ids]
+                        redis_client.set_cached_feedback(query_normalized, cache_data, 3600)
+                        print(f"Cached {len(form_ids)} results for future use")
+
+            if len(similarity_scores) != len(form_ids):
+                print(f"Score length ({len(similarity_scores)}) != Profile ID length ({len(form_ids)})")
+                if len(similarity_scores) < len(form_ids):
+                    similarity_scores.extend([0.5] * (len(form_ids) - len(similarity_scores)))
+                else:
+                    similarity_scores = similarity_scores[:len(form_ids)]
+
             
 
-            search_results = self.collection.query(
-                query_embeddings=[query_embedding],
-                n_results=top_k,
-                where=where_clause if where_clause else None,
-                include=['metadatas', 'distances']
-            )
-            
-            if not search_results['ids'] or not search_results['ids'][0]:
-                return []
-            
-            form_ids = search_results['ids'][0]
-            distances = search_results['distances'][0]
-            
-            similarity_scores = [1 / (1 + distance) for distance in distances]
-            
-            # Get forms from database
-            forms = db.query(Form).filter(
-                Form.id.in_(form_ids),
-                Form.is_active == True
-            ).all()
-            
-            form_dict = {f.id: f for f in forms}
-            
-            results = []
             for i, form_id in enumerate(form_ids):
                 if form_id in form_dict:
                     form = form_dict[form_id]
@@ -112,10 +168,10 @@ class FormLookupService:
                         'is_active': form.is_active,
                         'created_date': form.created_date
                     })
+                else:
+                    print(f"Profile {form_id} not found in database or inactive")
             
-          
-            if redis_client.is_connected():
-                redis_client.cache_search(query_normalized, results)
+            print(f"Returning {len(results)} total results")
             
             return results
             
@@ -352,15 +408,7 @@ class FormLookupService:
             
             active_formset = db.query(Formset).filter(Formset.status == "active").first()
             
-            # Get domain statistics
-            domain_stats = db.query(Form.domain, db.count(Form.id)).filter(
-                Form.is_active == True
-            ).group_by(Form.domain).all()
-            
-            # Get screening tool statistics
-            tool_stats = db.query(Form.screening_tool, db.count(Form.id)).filter(
-                Form.is_active == True
-            ).group_by(Form.screening_tool).all()
+
             
             return {
                 "active_forms": active_forms,
@@ -370,10 +418,10 @@ class FormLookupService:
                     "name": active_formset.name if active_formset else None,
                     "activated_date": active_formset.activated_date if active_formset else None,
                     "record_count": active_formset.record_count if active_formset else 0
-                } if active_formset else None,
-                "domain_distribution": [{"domain": domain, "count": count} for domain, count in domain_stats],
-                "screening_tool_distribution": [{"tool": tool[:50], "count": count} for tool, count in tool_stats]  # Truncate long tool names
+                } if active_formset else None
             }
+        
+
         except Exception as e:
             print(f"Error getting search stats: {e}")
             return {

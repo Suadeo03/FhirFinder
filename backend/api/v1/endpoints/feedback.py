@@ -9,16 +9,26 @@ from config.database import get_db
 from services.training_service import FeedbackTraining
 from models.database.feedback_models import UserFeedback, SearchQualityMetrics
 from services.search_service import SearchService
+from services.form_search_service import FormLookupService
 
 router = APIRouter()
 search_service = SearchService()
 feedback_service = FeedbackTraining()
-
+form_feedback_service = FormLookupService()
 
 # Pydantic models for API
 class FeedbackRequest(BaseModel):
     query: str
     profile_id: str
+    feedback_type: str  # 'positive', 'negative', 'neutral'
+    session_id: str
+    user_id: Optional[str] = None
+    original_score: float
+    context_info: Optional[Dict] = None
+
+class FeedbackFormRequest(BaseModel):
+    query: str
+    form_id: str
     feedback_type: str  # 'positive', 'negative', 'neutral'
     session_id: str
     user_id: Optional[str] = None
@@ -61,69 +71,7 @@ class SearchResponse(BaseModel):
     applied_feedback: bool
     session_id: str
 
-"""
-@router.post("/search/with-feedback", response_model=SearchResponse)
-async def search_with_feedback(
-    request: SearchWithFeedbackRequest,
-    db: Session = Depends(get_db)
-):
 
-    try:
-        # Perform the appropriate search
-        if request.search_type == "semantic":
-            results = search_service.semantic_search(
-                query=request.query,
-                top_k=request.top_k,
-                db=db,
-                filters=request.filters,
-                apply_feedback=request.apply_feedback
-            )
-        elif request.search_type == "traditional":
-            results = search_service.traditional_search(
-                query=request.query,
-                db=db,
-                top_k=request.top_k,
-                filters=request.filters,
-                apply_feedback=request.apply_feedback
-            )
-        else:  # hybrid
-            results = search_service.hybrid_search(
-                query=request.query,
-                top_k=request.top_k,
-                db=db,
-                semantic_weight=request.semantic_weight,
-                filters=request.filters,
-                apply_feedback=request.apply_feedback
-            )
-        
-        # Convert to response format
-        search_results = []
-        for result in results:
-            search_results.append(SearchResult(
-                id=result['id'],
-                name=result['name'],
-                description=result['description'],
-                resource_type=result['resource_type'],
-                category=result['category'],
-                similarity_score=result['similarity_score'],
-                original_score=result.get('original_score'),
-                adjustment_factor=result.get('adjustment_factor'),
-                feedback_boost=result.get('feedback_boost'),
-                keywords=result['keywords']
-            ))
-        
-        return SearchResponse(
-            results=search_results,
-            total_count=len(search_results),
-            query=request.query,
-            search_type=request.search_type,
-            applied_feedback=request.apply_feedback,
-            session_id=request.session_id
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
-"""
 
 @router.post("/feedback/record", response_model=FeedbackResponse)
 async def record_feedback(
@@ -142,6 +90,39 @@ async def record_feedback(
         feedback_service.record_user_feedback(
             query=request.query,
             profile_id=request.profile_id,
+            feedback_type=request.feedback_type,
+            user_id=request.user_id or "anonymous",
+            session_id=request.session_id,
+            original_score=request.original_score,
+            db=db,
+            context_info=request.context_info
+        )
+
+        return FeedbackResponse(
+            success=True,
+            message=f"Feedback recorded successfully for profile {request.profile_id}"
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to record feedback: {str(e)}")
+    
+@router.post("/forms/feedback/record", response_model=FeedbackResponse)
+async def record_feedback(
+    request: FeedbackFormRequest,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Validate feedback type
+        if request.feedback_type not in ['positive', 'negative', 'neutral']:
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid feedback type. Must be 'positive', 'negative', or 'neutral'"
+            )
+        
+        # Record the feedback
+        form_feedback_service.record_user_feedback(
+            query=request.query,
+            form_id=request.form_id,
             feedback_type=request.feedback_type,
             user_id=request.user_id or "anonymous",
             session_id=request.session_id,

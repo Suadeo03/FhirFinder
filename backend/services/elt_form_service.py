@@ -118,8 +118,8 @@ class ETL_Form_Service:
         loinc_answer_raw = self._extract_field(row, ['loinc_answer'])
         form['loinc_answer'] = self._parse_keywords(loinc_answer_raw) or "None available"
         
-        loinc_concept_raw = self._extract_field(row, ['loinc_answer_concept'])
-        form['loinc_answer_concept'] = self._parse_keywords(loinc_concept_raw) or "None available"
+        loinc_concept_raw = self._extract_field(row, ['loinc_concept'])  # Not 'loinc_answer_concept'
+        form['loinc_concept'] = self._parse_keywords(loinc_concept_raw) or "None available"
 
         snomed_raw = self._extract_field(row, ['snomed_code_ct'])
         form['snomed_code_ct'] = self._parse_keywords(snomed_raw) or "No code available"

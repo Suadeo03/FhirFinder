@@ -23,8 +23,6 @@ class SearchService:
         try:
             self.chroma_config = get_chroma_instance()
             self.collection = self.chroma_config.get_collection()
-            print("SearchService connected to Chroma singleton")
-            
             self.phi_scrubber = PHIQueryScrubber(model_name="en_core_web_sm")
             self.feedback_trainer = FeedbackTraining()
         except Exception as e:
@@ -37,26 +35,20 @@ class SearchService:
                     filters: Optional[Dict] = None) -> List[Dict]:
 
         phi_scrubbed_query = self.phi_scrubber.scrub_query(query)
-        if not phi_scrubbed_query or not phi_scrubbed_query.strip():
-            pass
 
-        if not is_chroma_available():
-            raise ValueError("Chroma singleton not available for search")
+        if not self.collection:
+            raise ValueError("Chroma collection not available for search")
         
         if not db:
             raise ValueError("Database session required")
 
 
-        try:
-            collection = self.collection
-        except Exception as e:
-            print(f"Failed to get collection from singleton: {e}")
-            return []
+
 
         results = []
         profile_dict = {}
         query_normalized = phi_scrubbed_query.lower().strip()
-        
+        profiles = []
         cached_feedback = redis_client.get_cached_feedback(query_normalized)
         similarity_scores = []
         profile_ids = []
@@ -96,7 +88,7 @@ class SearchService:
                 if not self.model:
                     print("SentenceTransformer model not available")
                     return []
-                query_embedding = self.model.encode([query])[0].tolist()
+                query_embedding = self.model.encode([phi_scrubbed_query])[0].tolist()
                 where_clause = {'is_active': True}
                 if filters:
                     for key, value in filters.items():

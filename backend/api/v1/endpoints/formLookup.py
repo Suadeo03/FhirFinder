@@ -12,8 +12,7 @@ router = APIRouter()
 class SearchRequest(BaseModel):
     query: str
     limit: Optional[int] = 10
-    search_type: Optional[str] = "hybrid"  # semantic, traditional, hybrid
-    semantic_weight: Optional[float] = 0.7
+    search_type: Optional[str] = 'semantic'
     filters: Optional[Dict[str, Any]] = None
 
 class FormResult(BaseModel):
@@ -50,7 +49,7 @@ class FilterSearchRequest(BaseModel):
 
 @router.post("/forms/search", response_model=SearchResponse)
 async def search_forms(request: SearchRequest, db: Session = Depends(get_db)):
-    """Search forms using semantic similarity, traditional text search, or hybrid approach"""
+
     try:
         search_service = FormLookupService()
         
@@ -75,6 +74,7 @@ async def search_forms(request: SearchRequest, db: Session = Depends(get_db)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+    
 
 @router.get("/forms/search/simple")
 async def simple_form_search(
@@ -176,7 +176,7 @@ async def filter_forms(request: FilterSearchRequest, db: Session = Depends(get_d
 
 @router.get("/forms/stats")
 async def get_search_statistics(db: Session = Depends(get_db)):
-    """Get comprehensive search and form statistics"""
+
     try:
         search_service = FormLookupService()
         stats = search_service.get_search_stats(db)

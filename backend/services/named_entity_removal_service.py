@@ -39,33 +39,25 @@ class PHIQueryScrubber:
             return query
         
         try:
-            # Process the text with spaCy
             doc = self.nlp(query)
-            
-            # Find all person entities
             person_entities = [ent for ent in doc.ents if ent.label_ == "PERSON"]
-            
-            # If no person names found, return original query
             if not person_entities:
                 return query
             
-            # Remove person names
+
             scrubbed_text = query
             offset = 0
             
-            # Sort by start position to maintain correct offsets
             for ent in sorted(person_entities, key=lambda x: x.start_char):
                 start = ent.start_char - offset
                 end = ent.end_char - offset
                 
-                # Remove the detected name
+
                 scrubbed_text = scrubbed_text[:start] + scrubbed_text[end:]
                 offset += (end - start)
             
-            # Clean up extra whitespace
             scrubbed_text = ' '.join(scrubbed_text.split()).strip()
             
-            # Return original if scrubbing resulted in empty string
             if not scrubbed_text:
                 logging.warning("Scrubbing resulted in empty query, returning original")
                 return query
