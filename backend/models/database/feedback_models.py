@@ -103,25 +103,32 @@ class SearchSession(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class FeedbackTrainingEmbeddings(Base):
-  
-    __tablename__ = "query_embeddings"
+    __tablename__ = "feedback_training_embeddings"
     
     id = Column(Integer, primary_key=True, index=True)
+    query_normalized = Column(Text, nullable=False, index=True)  # Remove unique - multiple profiles per query
+    query_embedding_vector = Column(JSON, nullable=False)
     
-    query_normalized = Column(Text, nullable=False, unique=True, index=True)
-    embedding_vector = Column(JSON, nullable=False)  # Store as JSON array
+    # Profile/Resource info
+    resource_id = Column(String(255), nullable=False, index=True)
+    original_embedding_vector = Column(JSON, nullable=False)     # ← BASELINE (never changes)
+    current_embedding_vector = Column(JSON, nullable=False)      # ← LEARNED (changes with feedback)
     
-   
-    search_count = Column(Integer, default=1)
-    last_searched = Column(DateTime, default=datetime.utcnow)
+    # Feedback metadata
+    feedback_type = Column(String(50), nullable=False)           # positive/negative/neutral
+    feedback_count = Column(Integer, default=1)                  # How many times this query-profile pair got feedback
+    learning_magnitude = Column(Float, default=0.0)              # How much the embedding has shifted
     
- 
-    positive_feedback_count = Column(Integer, default=0)
-    negative_feedback_count = Column(Integer, default=0)
-    embedding_version = Column(Integer, default=1)  # Track embedding updates
-    
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    # Timestamps
+    first_feedback_at = Column(DateTime, default=datetime.utcnow)
+    last_feedback_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Composite index for efficient queries
+    __table_args__ = (
+        Index('ix_query_resource', 'query_normalized', 'resource_id'),
+    )
 
 class FeedbackTrainingBatch(Base):
     """

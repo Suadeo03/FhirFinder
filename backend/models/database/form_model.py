@@ -42,16 +42,16 @@ class Form(Base):
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     domain = Column(String(255), nullable=False)
-    screening_tool = Column(Text, nullable=False)  # Changed from String(255) to Text - some are very long
-    loinc_panel_code = Column(String(100))  # Increased from 50 to 100
-    loinc_panel_name = Column(Text)  # Changed from String(255) to Text - some are very long
-    question = Column(Text)  # Changed from String(255) to Text - some questions are long
-    loinc_question_code = Column(String(100))  # Increased from 50 to 100
-    loinc_question_name_long = Column(Text)  # Already Text, good
-    answer_concept = Column(Text)  # Already Text, good
-    loinc_answer = Column(Text)  # Changed from String(50) to Text - contains long lists
-    loinc_concept = Column(Text)  # Already Text, good
-    snomed_code_ct = Column(Text)  # Changed from String(50) to Text - can contain multiple codes
+    screening_tool = Column(Text, nullable=False)  
+    loinc_panel_code = Column(String(100))  
+    loinc_panel_name = Column(Text)  
+    question = Column(Text)  
+    loinc_question_code = Column(String(100))  
+    loinc_question_name_long = Column(Text)  
+    answer_concept = Column(Text) 
+    loinc_answer = Column(Text)  
+    loinc_concept = Column(Text)  
+    snomed_code_ct = Column(Text) 
     formset_id = Column(String, ForeignKey("formsets.id"), nullable=False)
     is_active = Column(Boolean, default=False)
     created_date = Column(DateTime, default=datetime.utcnow)
@@ -76,10 +76,9 @@ class FormProcessingJob(Base):
     progress_percent = Column(Integer, default=0)
     error_message = Column(Text)
     
-    # Job-specific data
     job_data = Column(JSON)  # Store any job-specific parameters
     
-    # Relationship
+
     formset = relationship("Formset", back_populates="processing_jobs")
     
     def __repr__(self):

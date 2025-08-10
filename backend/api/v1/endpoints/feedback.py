@@ -6,15 +6,15 @@ from pydantic import BaseModel
 from typing import Optional, Dict, List
 from datetime import datetime
 from config.database import get_db
-from services.training_service import FeedbackTraining
+from services.model_training.training_service import FeedbackTraining
 from models.database.feedback_models import UserFeedback, SearchQualityMetrics
-from services.search_service import SearchService
-from services.form_search_service import FormLookupService
+from services.search.search_service import SearchService
+from services.model_training.training_service_forms import FeedbackTrainingForm
 
 router = APIRouter()
 search_service = SearchService()
 feedback_service = FeedbackTraining()
-form_feedback_service = FormLookupService()
+form_feedback_service = FeedbackTrainingForm()
 
 # Pydantic models for API
 class FeedbackRequest(BaseModel):
@@ -133,7 +133,7 @@ async def record_feedback(
 
         return FeedbackResponse(
             success=True,
-            message=f"Feedback recorded successfully for profile {request.profile_id}"
+            message=f"Feedback recorded successfully for profile {request.form_id}",
         )
         
     except Exception as e:

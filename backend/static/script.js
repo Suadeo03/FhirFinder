@@ -184,7 +184,7 @@ function displayCodeResult(result, dataset) {
     
     const resourceType = firstResult.resource_type || 'Unknown';
     const description = firstResult.description || 'No description available';
-    
+    const version = firstResult.version || 'No version available';
   
     const mustHave = Array.isArray(firstResult.must_have) && firstResult.must_have.length > 0 
         ? firstResult.must_have[0] 
@@ -204,6 +204,7 @@ function displayCodeResult(result, dataset) {
 
     return `<div class="success">
         <h2>Best match from ${dataset} dataset: ${escapeHtml(resourceType)}</h2>
+        <h3>Version: ${escapeHtml(version)}</h3>
         <div class="text-summary">${textSummary}</div><br/>
         
         <details>
@@ -274,31 +275,74 @@ function clearResult() {
     });
 }
 
+
 class FeedbackService {
     constructor(baseUrl = 'http://localhost:8000') {
         this.baseUrl = baseUrl;
     }
-    //case for each feedback type tab
+    
     async sendFeedback(query, id, feedbackType, original_score, contextInfo) {
         try {
-      
-            const response = await fetch(`${this.baseUrl}/api/v1/feedback/record`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                mode: 'cors',
-                body: JSON.stringify({
-                    query: query,
-                    profile_id: id,
-                    feedback_type: feedbackType,
-                    session_id: 'default-session',
-                    user_id: 'default-user',
-                    original_score: original_score || 0.0,
-                    context_info: contextInfo || {},
-                })
-            });
+            let response; 
+            
+            if (currentTab === 'resources') {
+                response = await fetch(`${this.baseUrl}/api/v1/feedback/record`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({
+                        query: query,
+                        profile_id: id,
+                        feedback_type: feedbackType,
+                        session_id: 'default-session',
+                        user_id: 'default-user',
+                        original_score: original_score || 0.0,
+                        context_info: contextInfo || {},
+                    })
+                });
+            } else if (currentTab === 'form') {
+                response = await fetch(`${this.baseUrl}/api/v1/forms/feedback/record`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({
+                        query: query,
+                        form_id: id,
+                        feedback_type: feedbackType,
+                        session_id: 'default-session',
+                        user_id: 'default-user',
+                        original_score: original_score || 0.0,
+                        context_info: contextInfo || {},
+                    })
+                });
+            } else {
+                // Handle other tabs - fallback to resources endpoint
+                response = await fetch(`${this.baseUrl}/api/v1/feedback/record`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({
+                        query: query,
+                        profile_id: id,
+                        feedback_type: feedbackType,
+                        session_id: 'default-session',
+                        user_id: 'default-user',
+                        original_score: original_score || 0.0,
+                        context_info: contextInfo || {},
+                    })
+                });
+            }
+
+            console.log(`Response status: ${response.status}`);
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -306,7 +350,10 @@ class FeedbackService {
                 throw new Error(`API Error: ${response.status} - ${errorText}`);
             }
 
-            return await response.json();
+            const responseData = await response.json();
+            console.log('Feedback response:', responseData);
+            return responseData;
+            
         } catch (error) {
             console.error('Error sending feedback:', error);
             throw error;
