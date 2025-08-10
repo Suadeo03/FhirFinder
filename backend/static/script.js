@@ -38,9 +38,8 @@ class FhirTextQuery {
         this.baseUrl = baseUrl;
     }
 
-    async getQuery(query, dataset = 'fhir') {
+    async getQuery(query, dataset = 'fhir', includeSummary = true) {
         try {
-       
             let endpoint = '/api/v1/search/';
             switch(dataset) {
                 case 'form':
@@ -63,7 +62,8 @@ class FhirTextQuery {
                 body: JSON.stringify({
                     query: `${query}`,
                     limit: 1,
-                    dataset: dataset
+                    dataset: dataset,
+                    summary: includeSummary  
                 })
             });
 
@@ -84,7 +84,7 @@ class FhirTextQuery {
             throw error;
         }
     }
-}
+    }
 
 let newQuery = new FhirTextQuery();
 
@@ -101,7 +101,8 @@ async function lookupBtn() {
         btn.disabled = true;
         showResult(`<div class="loading">Searching ${currentTab} dataset...</div>`);
         
-        const result = await newQuery.getQuery(text, currentTab);
+        // Pass includeSummary as true explicitly
+        const result = await newQuery.getQuery(text, currentTab, true);
         currentResult = result;
 
         function hasResults(result) {
@@ -149,13 +150,22 @@ function displayCodeResult(result, dataset) {
     }
     
     const firstResult = result.results[0];
-    console.log('First result:', firstResult);
+    
+
+    let summarySection = '';
+    if (result.summary) {
+        summarySection = `
+            <div class="search-summary">
+                <div class="summary-icon">💡</div>
+                <div class="summary-text">${escapeHtml(result.summary)}</div>
+            </div>
+        `;
+    }
     
     let fhirObjects = {};
     let textSummary = 'No text summary available';
     
     try {
-
         if (firstResult.fhir_resource && 
             Array.isArray(firstResult.fhir_resource) && 
             firstResult.fhir_resource.length > 0) {
@@ -181,7 +191,6 @@ function displayCodeResult(result, dataset) {
     }
     
     const uniqueId = `json-${Date.now()}`;
-    
     const resourceType = firstResult.resource_type || 'Unknown';
     const description = firstResult.description || 'No description available';
     const version = firstResult.version || 'No version available';
@@ -203,7 +212,9 @@ function displayCodeResult(result, dataset) {
         : '#';
 
     return `<div class="success">
-        <h2>Best match from ${dataset} dataset: ${escapeHtml(resourceType)}</h2>
+        ${summarySection}
+        
+        <h2>Best match: ${escapeHtml(resourceType)}</h2>
         <h3>Version: ${escapeHtml(version)}</h3>
         <div class="text-summary">${textSummary}</div><br/>
         
@@ -444,3 +455,53 @@ document.addEventListener('keypress', function(e) {
     }
 });
 
+async function checkNarrativeStatus() {
+    try {
+        const response = await fetch('http://localhost:8000/api/v1/search/narrative/status');
+        const status = await response.json();
+        
+        if (!status.available) {
+            console.warn('Conversational AI not available:', status);
+            // Optionally show a notice to users
+            showNarrativeStatusNotice(status);
+        }
+        
+        return status;
+    } catch (error) {
+        console.error('Error checking narrative status:', error);
+        return { available: false, error: error.message };
+    }
+}
+
+function showNarrativeStatusNotice(status) {
+    // Optional: Show a small notice that AI narrative is unavailable
+    const notice = document.createElement('div');
+    notice.className = 'narrative-notice';
+    notice.innerHTML = `
+        <small>Install Ollama and run 'ollama pull codellama' for AI-powered search insights</small>
+    `;
+    notice.style.cssText = `
+        background: #f0f9ff;
+        border: 1px solid #0ea5e9;
+        border-radius: 6px;
+        padding: 8px 12px;
+        margin-bottom: 16px;
+        font-size: 12px;
+        color: #0369a1;
+    `;
+     // Insert at the top of the search results area
+    const resultDiv = document.getElementById('result');
+    if (resultDiv && resultDiv.style.display !== 'none') {
+        resultDiv.insertBefore(notice, resultDiv.firstChild);
+        
+        // Remove notice after 10 seconds
+        setTimeout(() => {
+            if (notice.parentNode) {
+                notice.parentNode.removeChild(notice);
+            }
+        }, 10000);
+    }
+}
+
+// Check status when page loads
+document.addEventListener('DOMContentLoaded', checkNarrativeStatus);

@@ -264,3 +264,36 @@ img {
     max-width: 100%;
     height: auto; 
 }
+.search-summary {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.summary-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.summary-text {
+    font-size: 14px;
+    line-height: 1.4;
+    color: #374151;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+    .search-summary {
+        background: #1f2937;
+        border-color: #374151;
+    }
+    
+    .summary-text {
+        color: #d1d5db;
+    }
+}
