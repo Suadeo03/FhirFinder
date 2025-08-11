@@ -9,8 +9,8 @@ import os
 import shutil
 
 from config.database import get_db
-from models.database.models import V2FHIRdataset, V2FHIRdata, V2ProcessingJob
-from services.v2_fhir_etl_service import V2FHIRETLService
+from models.database.fhir_v2_model import V2FHIRdataset, V2FHIRdata, V2ProcessingJob
+from services.elt_pipeline.etl_service_V2 import V2FHIRETLService
 
 router = APIRouter()
 etl_service = V2FHIRETLService()
@@ -64,8 +64,8 @@ class V2FHIRDataResponse(BaseModel):
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@router.get("/datasets", response_model=V2FHIRDatasetList)
-async def list_datasets(db: Session = Depends(get_db)):
+@router.get("/v2-fhir-datasets", response_model=V2FHIRDatasetList)
+async def list_v2_fhir_datasets(db: Session = Depends(get_db)):
     """List all uploaded V2 FHIR datasets"""
     datasets = db.query(V2FHIRdataset).order_by(V2FHIRdataset.upload_date.desc()).all()
     return V2FHIRDatasetList(
@@ -73,21 +73,22 @@ async def list_datasets(db: Session = Depends(get_db)):
         total=len(datasets)
     )
 
-@router.get("/datasets/{dataset_id}", response_model=V2FHIRDatasetResponse)
-async def get_dataset(dataset_id: str, db: Session = Depends(get_db)):
+@router.get("/v2-fhir-datasets/{dataset_id}", response_model=V2FHIRDatasetResponse)
+async def get_v2_fhir_dataset(dataset_id: str, db: Session = Depends(get_db)):
     """Get details of a specific V2 FHIR dataset"""
     dataset = db.query(V2FHIRdataset).filter(V2FHIRdataset.id == dataset_id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
     return V2FHIRDatasetResponse.from_orm(dataset)
 
-@router.post("/datasets/upload", response_model=V2ProcessResponse)
-async def upload_dataset(
+@router.post("/v2-fhir-datasets/upload", response_model=V2ProcessResponse)
+async def upload_v2_fhir_dataset(
     file: UploadFile = File(...),
     name: str = FormUpload(...),
     description: Optional[str] = FormUpload(None),
     db: Session = Depends(get_db)
 ):
+
     """Upload a new V2 FHIR mapping dataset file"""
     try:
         # Validate file type
@@ -134,8 +135,8 @@ async def upload_dataset(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
-@router.get("/datasets/{dataset_id}/download")
-async def download_dataset(
+@router.get("/v2-fhir-datasets/{dataset_id}/download")
+async def download_v2_fhir_dataset(
     dataset_id: str,
     db: Session = Depends(get_db)
 ):
@@ -168,8 +169,8 @@ async def download_dataset(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
-@router.post("/datasets/{dataset_id}/process", response_model=V2ProcessResponse)
-async def process_dataset(dataset_id: str, db: Session = Depends(get_db)):
+@router.post("/v2-fhir-datasets/{dataset_id}/process", response_model=V2ProcessResponse)
+async def process_v2_fhir_dataset(dataset_id: str, db: Session = Depends(get_db)):
     """Process an uploaded V2 FHIR dataset"""
     try:
         dataset = db.query(V2FHIRdataset).filter(V2FHIRdataset.id == dataset_id).first()
@@ -204,8 +205,8 @@ async def process_dataset(dataset_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
-@router.put("/datasets/{dataset_id}/activate", response_model=V2ProcessResponse)
-async def activate_dataset(dataset_id: str, db: Session = Depends(get_db)):
+@router.put("/v2-fhir-datasets/{dataset_id}/activate", response_model=V2ProcessResponse)
+async def activate_v2_fhir_dataset(dataset_id: str, db: Session = Depends(get_db)):
     """Activate a processed dataset (make its mappings searchable)"""
     try:
         dataset = db.query(V2FHIRdataset).filter(V2FHIRdataset.id == dataset_id).first()
@@ -237,8 +238,8 @@ async def activate_dataset(dataset_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Activation failed: {str(e)}")
 
-@router.put("/datasets/{dataset_id}/deactivate", response_model=V2ProcessResponse)
-async def deactivate_dataset(dataset_id: str, db: Session = Depends(get_db)):
+@router.put("/v2-fhir-datasets/{dataset_id}/deactivate", response_model=V2ProcessResponse)
+async def deactivate_v2_fhir_dataset(dataset_id: str, db: Session = Depends(get_db)):
     """Deactivate a dataset (remove its mappings from search)"""
     try:
         dataset = db.query(V2FHIRdataset).filter(V2FHIRdataset.id == dataset_id).first()
@@ -269,8 +270,8 @@ async def deactivate_dataset(dataset_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Deactivation failed: {str(e)}")
 
-@router.delete("/datasets/{dataset_id}")
-async def delete_dataset(dataset_id: str, db: Session = Depends(get_db)):
+@router.delete("/v2-fhir-datasets/{dataset_id}")
+async def delete_v2_fhir_dataset(dataset_id: str, db: Session = Depends(get_db)):
     """Delete a dataset and all its V2-FHIR mappings"""
     try:
         dataset = db.query(V2FHIRdataset).filter(V2FHIRdataset.id == dataset_id).first()
@@ -283,11 +284,11 @@ async def delete_dataset(dataset_id: str, db: Session = Depends(get_db)):
                 detail="Cannot delete active dataset. Deactivate it first."
             )
         
- 
+        # Delete the file if it exists
         if dataset.file_path and os.path.exists(dataset.file_path):
             os.remove(dataset.file_path)
         
-
+        # Delete from database (cascade will handle related records)
         db.delete(dataset)
         db.commit()
         
@@ -297,8 +298,8 @@ async def delete_dataset(dataset_id: str, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Deletion failed: {str(e)}")
 
-@router.get("/datasets/{dataset_id}/mappings")
-async def preview_dataset_mappings(
+@router.get("/v2-fhir-datasets/{dataset_id}/mappings")
+async def preview_v2_fhir_dataset_mappings(
     dataset_id: str, 
     limit: int = 10,
     offset: int = 0,
@@ -329,13 +330,14 @@ async def preview_dataset_mappings(
         ]
     }
 
-@router.get("/datasets/{dataset_id}/stats")
-async def get_dataset_stats(dataset_id: str, db: Session = Depends(get_db)):
+@router.get("/v2-fhir-datasets/{dataset_id}/stats")
+async def get_v2_fhir_dataset_stats(dataset_id: str, db: Session = Depends(get_db)):
     """Get statistics for a V2 FHIR dataset"""
     dataset = db.query(V2FHIRdataset).filter(V2FHIRdataset.id == dataset_id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
-
+    
+    # Get mapping statistics
     total_mappings = db.query(V2FHIRdata).filter(
         V2FHIRdata.V2FHIRdataset_id == dataset_id
     ).count()
@@ -345,18 +347,18 @@ async def get_dataset_stats(dataset_id: str, db: Session = Depends(get_db)):
         V2FHIRdata.is_active == True
     ).count()
     
-
+    # Get unique resource types
     resource_types = db.query(V2FHIRdata.resource).filter(
         V2FHIRdata.V2FHIRdataset_id == dataset_id
     ).distinct().all()
     
-
+    # Get unique FHIR versions
     fhir_versions = db.query(V2FHIRdata.fhir_version).filter(
         V2FHIRdata.V2FHIRdataset_id == dataset_id,
         V2FHIRdata.fhir_version.isnot(None)
     ).distinct().all()
     
-
+    # Get unique HL7 V2 versions
     v2_versions = db.query(V2FHIRdata.hl7v2_field_version).filter(
         V2FHIRdata.V2FHIRdataset_id == dataset_id,
         V2FHIRdata.hl7v2_field_version.isnot(None)

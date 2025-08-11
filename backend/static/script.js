@@ -41,16 +41,34 @@ class FhirTextQuery {
     async getQuery(query, dataset = 'fhir', includeSummary = true) {
         try {
             let endpoint = '/api/v1/search/';
+            let requestBody = {};
+
             switch(dataset) {
                 case 'form':
                     endpoint = '/api/v1/forms/search';
+                    requestBody = {
+                        query: query,
+                        limit: 5,
+                    };
                     break;
                 case 'mapping':
-                    endpoint = '/api/v1/search/mapping/';
+                    endpoint = '/api/v1/search/mapping';
+                    requestBody = {
+                        query: query,
+                        limit: 5,
+                    };
                     break;
                 default:
-                    endpoint = '/api/v1/search/'
+                    endpoint = '/api/v1/search/';
+                    requestBody = {
+                        query: query,
+                        limit: 1,
+                        dataset: dataset,
+                    };
             }
+
+            console.log(`Making request to: ${this.baseUrl}${endpoint}`);
+            console.log('Request body:', requestBody);
 
             const response = await fetch(`${this.baseUrl}${endpoint}`, {
                 method: 'POST',
@@ -59,12 +77,7 @@ class FhirTextQuery {
                     'Accept': 'application/json',
                 },
                 mode: 'cors',
-                body: JSON.stringify({
-                    query: `${query}`,
-                    limit: 1,
-                    dataset: dataset,
-                    summary: includeSummary  
-                })
+                body: JSON.stringify(requestBody)
             });
 
             console.log(`Response status: ${response.status}`);
@@ -84,7 +97,7 @@ class FhirTextQuery {
             throw error;
         }
     }
-    }
+}
 
 let newQuery = new FhirTextQuery();
 
@@ -119,7 +132,10 @@ async function lookupBtn() {
             }
             else if (currentTab === 'form') {
                 showResult(displayFormResult(result, currentTab));
-            } 
+            }
+            else if (currentTab === 'mapping') {
+                showResult(displayV2FhirResult(result, currentTab));
+            }
         } else {
             showResult(`<div class="error">No results found in ${currentTab} dataset</div>`);
             currentResult = null;

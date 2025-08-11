@@ -13,11 +13,14 @@ from api.v1.endpoints.query_performance import router as queryperformance_router
 from api.v1.endpoints.feedback import router as feedback_router
 from api.v1.endpoints.formsets import router as formsets_router
 from api.v1.endpoints.formLookup import router as formlookup_router
+from api.v1.endpoints.v2_mapping_search import router as v2_mapping_router
+from api.v1.endpoints.elt_api_v2_mapping import router as elt_api_v2_mapping_router
+
 from config.database import init_database, get_db
 from config.redis_cache import RedisQueryCache
 from services.search.search_service import SearchService
 
-# Initialize database on startup
+
 init_database()
 cache = RedisQueryCache()
 
@@ -43,6 +46,8 @@ app.include_router(queryperformance_router, prefix="/api/v1", tags=["performance
 app.include_router(feedback_router, prefix="/api/v1", tags=["feedback"])
 app.include_router(formsets_router, prefix="/api/v1", tags=["formsets"])
 app.include_router(formlookup_router, prefix="/api/v1", tags=["formlookup"])
+app.include_router(v2_mapping_router, prefix="/api/v1", tags=["v2_mapping_search"])
+app.include_router(elt_api_v2_mapping_router, prefix="/api/v1", tags=["elt_api_v2_mapping"])
 
 static_dir = "static"
 if os.path.exists(static_dir):
@@ -53,8 +58,10 @@ if os.path.exists(static_dir):
 
 
 
-@app.get("/")
+@app.get("/static/index.html")
 async def root():
+    
+    """
     return {
         "message": "FHIR Profile Recommender API v2.0",
         "features": [
@@ -63,6 +70,8 @@ async def root():
             "ETL pipeline for data processing",
         ]
     }
+    """
+    
 
 @app.get("/health/db")
 async def health(db: Session = Depends(get_db)):

@@ -15,6 +15,7 @@ from datetime import datetime
 
 redis_client = RedisQueryCache()
 
+
 class V2FHIRSearchService:   
     def __init__(self):
         try:
@@ -97,9 +98,19 @@ class V2FHIRSearchService:
 
                 query_embedding = self.model.encode([phi_scrubbed_query])[0].tolist()
                 
-     
+                # Build where clause for Chroma
                 where_clause = {'is_active': True}
-    
+                if filters:
+                    if filters.get('only_active', True):
+                        where_clause['is_active'] = True
+                    if filters.get('resource_type'):
+                        where_clause['resource'] = filters['resource_type']
+                    if filters.get('fhir_version'):
+                        where_clause['fhir_version'] = filters['fhir_version']
+                    if filters.get('hl7v2_version'):
+                        where_clause['hl7v2_field_version'] = filters['hl7v2_version']
+                    if filters.get('dataset_id'):
+                        where_clause['dataset_id'] = filters['dataset_id']
 
                 search_results = self.collection.query(
                     query_embeddings=[query_embedding],
@@ -122,11 +133,18 @@ class V2FHIRSearchService:
                     similarity_scores = [0.5] * len(mapping_ids)
                 
                 mappings = db.query(V2FHIRdata).filter(
-                    V2FHIRdata.id.in_(mapping_ids),
-                    V2FHIRdata.is_active == True
-                ).all()
+                    V2FHIRdata.id.in_(mapping_ids)
+                ).all()  # Remove the is_active filter here to debug
                 
-                mapping_dict = {m.id: m for m in mappings}
+                print(f"Found {len(mappings)} mappings in database out of {len(mapping_ids)} requested")
+                print(f"Requested IDs: {mapping_ids}")
+                print(f"Found IDs: {[m.id for m in mappings]}")
+                
+                # Filter for active mappings after retrieving
+                active_mappings = [m for m in mappings if m.is_active]
+                print(f"Active mappings: {len(active_mappings)} out of {len(mappings)}")
+                
+                mapping_dict = {m.id: m for m in active_mappings}
                 
                 if len(mapping_ids) > 0:
                     cache_data = [{'mapping_id': mid} for mid in mapping_ids]
@@ -505,4 +523,41 @@ class V2FHIRSearchService:
             print(f"Error getting available filters: {e}")
             return {}
 
-  
+    def get_search_suggestions(self, partial_query: str, limit: int = 10, db: Session = None) -> List[str]:
+        """Get search term suggestions based on partial input"""
+        if not db or len(partial_query) < 2:
+            return []
+        
+        try:
+            suggestions = set()
+            
+            # Search in resource names
+            resources = db.query(V2FHIRdata.resource).filter(
+                V2FHIRdata.is_active == True,
+                V2FHIRdata.resource.ilike(f"%{partial_query}%")
+            ).distinct().limit(limit).all()
+            suggestions.update([r[0] for r in resources if r[0]])
+            
+            # Search in HL7 V2 fields
+            hl7_fields = db.query(V2FHIRdata.hl7v2_field).filter(
+                V2FHIRdata.is_active == True,
+                V2FHIRdata.hl7v2_field.ilike(f"%{partial_query}%")
+            ).distinct().limit(limit).all()
+            suggestions.update([f[0] for f in hl7_fields if f[0]])
+            
+            # Search in FHIR details (first few words)
+            fhir_details = db.query(V2FHIRdata.fhir_detail).filter(
+                V2FHIRdata.is_active == True,
+                V2FHIRdata.fhir_detail.ilike(f"%{partial_query}%")
+            ).distinct().limit(limit // 2).all()
+            
+            for detail in fhir_details:
+                if detail[0]:
+                    words = detail[0].split()[:3]  # First 3 words
+                    suggestions.add(" ".join(words))
+            
+            return sorted(list(suggestions))[:limit]
+            
+        except Exception as e:
+            print(f"Error getting search suggestions: {e}")
+            return []

@@ -25,7 +25,7 @@ class QueryPerformanceResponse(BaseModel):
     context_score: float
     combined_score: float
     match_reasons: Optional[str] = None
-    keywords: Optional[Union[Dict, List, str]] = None  # Add default None
+    keywords: Optional[Union[Dict, List, str]] = None  
     
     @field_validator('keywords', mode='before')
     @classmethod

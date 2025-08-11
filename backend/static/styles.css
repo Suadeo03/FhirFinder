@@ -297,3 +297,46 @@ img {
         color: #d1d5db;
     }
 }
+ .mapping-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin: 10px 0;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 6px;
+            }
+            .sub-detail {
+                margin: 10px 0;
+                padding: 8px;
+                background: #e3f2fd;
+                border-radius: 4px;
+                font-style: italic;
+            }
+            .fhir-detail {
+                padding: 12px;
+                background: #f0f8ff;
+                border-left: 4px solid #2196F3;
+                margin: 8px 0;
+                border-radius: 4px;
+            }
+            .v2-mapping {
+                padding: 12px;
+                background: #f0fff0;
+                border-left: 4px solid #4CAF50;
+                margin: 8px 0;
+                border-radius: 4px;
+            }
+            .v2-detail {
+                margin-top: 8px;
+                font-size: 0.95em;
+                color: #555;
+            }
+            .mapping-metadata {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 15px;
+                padding-top: 10px;
+                border-top: 1px solid #eee;
+            }
