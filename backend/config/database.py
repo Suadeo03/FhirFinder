@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from models.database.models import Base
 from models.database.form_model import Base as FormBase
 from models.database.feedback_models import Base as FeedbackBase
+from models.database.fhir_v2_model import Base as FormV2Base
 import os
 from sqlalchemy import text
 
@@ -25,6 +26,7 @@ def create_tables():
     Base.metadata.create_all(bind=engine)
     FeedbackBase.metadata.create_all(bind=engine)
     FormBase.metadata.create_all(bind=engine)
+    FormV2Base.metadata.create_all(bind=engine)
     print("Database tables created successfully")
 
 def get_db():

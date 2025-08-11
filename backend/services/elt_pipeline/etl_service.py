@@ -40,16 +40,11 @@ class ETLService:
 
             dataset.status = "processing"
             db.commit()
-
             raw_data = self._load_file(dataset.file_path)
-
             profiles_data = self._transform_data(raw_data, dataset.filename)
-
             validated_data = self._validate_profiles(profiles_data)
-
             profile_count = self._load_profiles(validated_data, dataset_id, db)
             
-  
             dataset.status = "ready"
             dataset.processed_date = datetime.utcnow()
             dataset.record_count = profile_count

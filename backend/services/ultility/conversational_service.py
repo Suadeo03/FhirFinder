@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class FHIRConversationalService:
-    """Simple service to summarize FHIR search results with the user's query"""
+    """Summarize FHIR search results with the user's query"""
     
     def __init__(self, ollama_url: str = "http://localhost:11434", model: str = "tinyllama"):
         self.ollama_url = ollama_url
@@ -32,11 +32,11 @@ class FHIRConversationalService:
                     "prompt": prompt,
                     "stream": False,
                     "options": {
-                        "num_predict": 100,  # Short responses
-                        "temperature": 0.3   # More focused
+                        "num_predict": 100,  
+                        "temperature": 0.4   
                     }
                 },
-                timeout=20  # Shorter timeout
+                timeout=20  
             )
             
             if response.status_code == 200:
@@ -54,7 +54,6 @@ class FHIRConversationalService:
             return f"No FHIR profiles found for '{query}'. Try different search terms."
         
         if not self.available:
-            # Simple fallback without AI
             first_result = results[0]
             resource_type = first_result.get('resource_type', 'FHIR profile')
             return f"Found {len(results)} {resource_type}(s) matching '{query}'."

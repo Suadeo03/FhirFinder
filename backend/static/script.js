@@ -46,7 +46,7 @@ class FhirTextQuery {
                     endpoint = '/api/v1/forms/search';
                     break;
                 case 'mapping':
-                    endpoint = '/api/v1/mapping/';
+                    endpoint = '/api/v1/search/mapping/';
                     break;
                 default:
                     endpoint = '/api/v1/search/'
@@ -332,7 +332,9 @@ class FeedbackService {
                         context_info: contextInfo || {},
                     })
                 });
-            } else {
+
+                } 
+            else {
                 // Handle other tabs - fallback to resources endpoint
                 response = await fetch(`${this.baseUrl}/api/v1/feedback/record`, {
                     method: 'POST',
@@ -395,6 +397,10 @@ async function sendFeedbackResponse(feedbackType) {
         originalScore = currentResult.results[0].similarity_score || 0.0;
         context_info = currentResult.results[0].use_contexts?.[0] || '';
     } else if (currentTab === 'form') {
+        id = currentResult.results[0].id;
+        originalScore = currentResult.results[0].similarity_score || 0.0;
+        context_info = '';
+    } else if (currentTab === 'mapping') {
         id = currentResult.results[0].id;
         originalScore = currentResult.results[0].similarity_score || 0.0;
         context_info = '';
