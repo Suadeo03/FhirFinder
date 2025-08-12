@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suadeo</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!--<h1>Suadeo</h1>-->
+        <img src="/static/logo2.png" alt="Suadeo Logo" class="responsive">
+        <div id="connectionStatus"></div>
+        
+        <div class="tab-container">
+            <!-- Tab Navigation -->
+            <div class="tab-nav">
+                <button class="tab-button active" onclick="switchTab('resources', event)">Find Resources</button>
+                <button class="tab-button" onclick="switchTab('form', event)">Question Mapper</button>
+                <button class="tab-button" onclick="switchTab('mapping', event)">V2 to FHIR</button>
+            </div>
+
+            <!-- FHIR Resources Tab -->
+            <div id="resources-tab" class="tab-content active">
+                <div class="dataset-info">
+                </div>
+                <input type="text" id="resourceQuery" placeholder="Enter a business case...">
+            </div>
+
+            <!-- Search Tab -->
+            <div id="search-tab" class="tab-content">
+                <div class="dataset-info">
+                </div>
+                <input type="text" id="searchQuery" placeholder="Lookup FHIR search parameters...">
+            </div>
+
+            <!-- Form Data Tab -->
+            <div id="form-tab" class="tab-content">
+                <div class="dataset-info">
+                </div>
+                <input type="text" id="formQuery" placeholder="Enter an assessment question...">
+            </div>
+
+            <!-- Mapping Tab -->
+            <div id="mapping-tab" class="tab-content">
+                <div class="dataset-info"></div>
+                <input type="text" id="mappingQuery" placeholder="FHIR to V2 mapping examples...">
+            </div>
+        </div>
+        
+        <div class="test-buttons">
+            <button id="lookupBtn" onclick="lookupBtn()">Lookup</button>
+            <button id="positiveResponse" onclick="positiveResponse()">Helpful</button>
+            <button onclick="negativeResponse()">Not Helpful</button>
+            <button onclick="clearResult()">Clear</button>
+        </div>
+        
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script src="/static/script.js"></script>
+    <script src="/static/form.js"></script>
+    <script src="/static/fhirv2.js"></script>
+</body>
+</html>

@@ -1,0 +1,163 @@
+
+services:
+  # Database Services
+  postgres:
+    image: postgres:15
+    container_name: fhir_postgres
+    environment:
+      POSTGRES_DB: fhir_registry
+      POSTGRES_USER: fhir_user
+      POSTGRES_PASSWORD: admin
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fhir_user -d fhir_registry"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - fhir_network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: fhir_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin_password
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - fhir_network
+
+  # Cache Services
+  redis:
+    image: redis:7-alpine
+    container_name: fhir_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    networks:
+      - fhir_network
+
+  # Vector Database
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: fhir_chroma
+    ports:
+      - "8001:8001"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+      - CHROMA_HOST=0.0.0.0     
+      - CHROMA_PORT=8001         
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - fhir_network
+
+  # Ollama LLM Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: fhir_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - fhir_network
+
+
+  # FastAPI 
+  fhir_app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fhir_backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Database Configuration
+      - DATABASE_URL=postgresql://fhir_user:admin@postgres:5432/fhir_registry
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=fhir_registry
+      - POSTGRES_USER=fhir_user
+      - POSTGRES_PASSWORD=admin
+      
+      # Redis Configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      
+      # Chroma Configuration
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8001
+      - CHROMA_COLLECTION_NAME=fhir_profiles
+      
+      # Ollama Configuration
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=tinyllama
+      
+      # Application Settings
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - API_V1_STR=/api/v1
+      
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      chroma:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - fhir_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  redis_data:
+    driver: local
+  chroma_data:
+    driver: local
+  uploads_data:
+    driver: local
+  ollama_data:
+    driver: local
+
+networks:
+  fhir_network:
+    driver: bridge
