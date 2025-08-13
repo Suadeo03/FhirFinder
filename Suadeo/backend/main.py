@@ -1,4 +1,3 @@
-# backend/main.py (FIXED)
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -22,7 +21,7 @@ from api.v1.endpoints.v2_mapping_search import router as v2_mapping_router
 from api.v1.endpoints.elt_api_v2_mapping import router as elt_api_v2_mapping_router
 
 from config.database import init_database, get_db
-from config.chroma import get_chroma_instance, is_chroma_available
+from config.chroma import ChromaConfig
 from config.redis_cache import RedisQueryCache
 from services.ultility.conversational_service import FHIRConversationalService
 
@@ -64,7 +63,7 @@ else:
 # Initialize services
 cache = RedisQueryCache()
 convo = FHIRConversationalService()
-
+chroma_config = ChromaConfig()
 def health_check_db():
     """Check PostgreSQL database connectivity"""
     try:
@@ -86,16 +85,20 @@ def health_check_db():
 def redis_health():
     """Check Redis cache connectivity"""
     try:
+        # Use the correct attribute name from RedisQueryCache
+        if not cache.is_connected():
+            return "disconnected"
+        
         # Test Redis with a simple operation
         test_key = "health_check"
-        cache.redis.set(test_key, "ok", ex=5)
-        result = cache.redis.get(test_key)
+        cache.redis_client.set(test_key, "ok", ex=5)
+        result = cache.redis_client.get(test_key)
         
-        if result and result.decode() == "ok":
-            cache.redis.delete(test_key)
+        if result and result == "ok":  # decode_responses=True returns strings
+            cache.redis_client.delete(test_key)
             return "connected"
         else:
-            return "error"
+            return "test_failed"
     except Exception as e:
         print(f"Redis health check failed: {e}")
         return "disconnected"
@@ -103,11 +106,10 @@ def redis_health():
 def chroma_health():
     """Check ChromaDB vector database connectivity"""
     try:
-        if not is_chroma_available():
+        if not chroma_config.is_available():
             return "unavailable"
             
-        chroma_config = get_chroma_instance()
-        if not chroma_config:
+        if not chroma_config.get_client():
             return "disconnected"
             
         # Test Chroma with a simple operation
@@ -261,12 +263,16 @@ async def detailed_health_check():
         # Redis details
         redis_details = {}
         try:
-            info = cache.redis.info()
-            redis_details = {
-                "connected_clients": info.get("connected_clients", 0),
-                "used_memory_human": info.get("used_memory_human", "unknown"),
-                "keyspace": info.get("db0", {})
-            }
+            if cache.is_connected():
+                info = cache.redis_client.info()
+                redis_details = {
+                    "connected_clients": info.get("connected_clients", 0),
+                    "used_memory_human": info.get("used_memory_human", "unknown"),
+                    "keyspace": info.get("db0", {}),
+                    "cache_stats": cache.get_cache_stats()
+                }
+            else:
+                redis_details = {"error": "not_connected"}
         except Exception as e:
             redis_details["error"] = str(e)
         
@@ -300,7 +306,7 @@ async def detailed_health_check():
             "error": str(e)
         }
 
-
-#if __name__ == "__main__":
-#    import uvicorn
-#   uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+# Only run uvicorn if this file is executed directly (not when imported)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

@@ -1,5 +1,6 @@
 # config/redis_cache.py - Fixed version
 import redis
+import os
 import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -7,24 +8,56 @@ from datetime import datetime
 class RedisQueryCache:
     def __init__(self):
         try:
+            # Use environment variables for Docker compatibility
+            redis_host = os.getenv('REDIS_HOST', 'localhost')
+            redis_port = int(os.getenv('REDIS_PORT', 6379))
+            redis_db = int(os.getenv('REDIS_DB', 0))
+            
             self.redis_client = redis.Redis(
-                host='localhost',
-                port=6379,
-                db=0,
+                host=redis_host,
+                port=redis_port,
+                db=redis_db,
                 decode_responses=True  # This ensures strings are returned, not bytes
             )
             # Test connection
             self.redis_client.ping()
             self._connected = True
+            print(f"✅ Redis connected to {redis_host}:{redis_port}")
             self.clear_all_cache()
 
         except Exception as e:
-            print(f"Redis connection failed: {e}")
+            print(f"❌ Redis connection failed: {e}")
             self._connected = False
             self.redis_client = None
 
+    @property
+    def redis(self):
+        """Property for backwards compatibility"""
+        return self.redis_client
+
+    def get_redis_client(self):
+        """Get the Redis client instance"""
+        return self.redis_client
+
     def is_connected(self) -> bool:
-        return self._connected and self.redis_client is not None
+        """Check if Redis is connected"""
+        if not self._connected or self.redis_client is None:
+            return False
+        
+        try:
+            # Test connection with ping
+            self.redis_client.ping()
+            return True
+        except Exception:
+            self._connected = False
+            return False
+
+    def ping(self):
+        """Ping Redis server"""
+        try:
+            return self.redis_client.ping() if self.redis_client else False
+        except Exception:
+            return False
 
     def get_cached_feedback(self, query_key: str) -> Optional[List[Dict]]:
         """Get cached feedback data for a query"""

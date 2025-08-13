@@ -13,8 +13,7 @@ class QueryPerformance(Base):
     __tablename__ = "query_performance"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    
-    # Legacy fields (from existing table)
+
     profile_id = Column(String, nullable=False)  #
     query_text = Column(String(500), nullable=False)
     query_date = Column(DateTime, default=datetime.utcnow)
@@ -26,7 +25,7 @@ class QueryPerformance(Base):
     match_reasons = Column(Text)
     keywords = Column(JSON)
     
-    # New fields (added via ALTER statements)
+
     query_normalized = Column(String(500))
     search_type = Column(String(50))
     dataset_type = Column(String(50))

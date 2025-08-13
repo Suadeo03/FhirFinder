@@ -80,7 +80,7 @@ Write a brief, helpful summary."""
         
     
         if not summary or len(summary.strip()) < 10:
-            return f"Found {len(results)} {resource_type} profile(s) for '{query}'. Best match: {name}."
+            return f"Found {len(results)} {resource_type} profile(s) for '{query}'."
         
         return summary
     
