@@ -380,7 +380,7 @@ environment:
 
 ## 📄 License
 
-[Add your license information here]
+See License
 
 ## 🤝 Support
 
