@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class FHIRConversationalService:
     """Summarize FHIR search results with the user's query"""
     
-    def __init__(self, ollama_url: str = "http://localhost:11434", model: str = "tinyllama"):
+    def __init__(self, ollama_url: str = "http://ollama:11434", model: str = "tinyllama"):
         self.ollama_url = ollama_url
         self.model = model
         self.available = self._check_ollama_availability()
@@ -60,20 +60,17 @@ class FHIRConversationalService:
         
         # Extract key info from results
         first_result = results[0]
-        resource_type = first_result.get('resourceType', 'Unknown')
         description = first_result.get('description', '')[:100]
         keywords = first_result.get('keywords','')
-        must_include = first_result.get('must_have', [])  
         
 
-        prompt = f"""Summarize this search result for a user by acknolwedging their query, providing a brief description of the resource, a particular use context or key words, and if there are any constratints or limitations to be aware of.:
+        prompt = f"""Summarize this search result for a user by acknolwedging their query, providing a brief description of the resource, a particular use context or key words:
 
 Query: "{query}"
 Found: {len(results)} results
-Best match: {resource_type}
 Description: {description}
 Keywords : {keywords}
-must_include: {must_include}
+
 Write a brief, helpful summary."""
 
         summary = self._query_ollama(prompt)

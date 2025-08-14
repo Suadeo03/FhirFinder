@@ -22,7 +22,6 @@ class QueryTracker:
         self.current_query_id = str(uuid.uuid4())
         self.start_time = time.time()
         
-        # Store initial query data (we'll update with results later)
         self.query_data = {
             'id': self.current_query_id,
             'query_text': query_text,
@@ -86,19 +85,36 @@ class QueryTracker:
                 'has_results': result_count > 0,
                 'similarity_scores': [r.get('similarity_score', 0) for r in results] if results else [],
                 'filters_applied': filters or {},
+
+                'context_score': None,  
+                'combined_score': None,  
+                'match_reasons': None, 
+                'keywords': None,  
             })
             
-            # Add top result details if available
+
             if top_result:
                 self.query_data.update({
-                    'profile_id': top_result.get('id'),  # Add this for existing schema compatibility
-                    'profile_name': top_result.get('name', top_result.get('resource', 'Unknown')),  # Add profile_name
-                    'profile_oid': top_result.get('oid', top_result.get('local_id', '')),  # Add profile_oid
-                    'profile_score': top_result.get('similarity_score', 0),  # Add profile_score
+                    'profile_id': top_result.get('id'),
+                    'profile_name': top_result.get('name', top_result.get('resource', 'Unknown')),
+                    'profile_oid': top_result.get('oid', top_result.get('local_id', '')),
+                    'profile_score': top_result.get('similarity_score', 0),
                     'top_result_id': top_result.get('id'),
                     'top_result_score': top_result.get('similarity_score', 0),
-                    'top_result_type': top_result.get('resource', top_result.get('resource_type', 'unknown'))
+                    'top_result_type': top_result.get('resource', top_result.get('resource_type', 'unknown')),
+                    
+                    'keywords': top_result.get('keywords', top_result.get('metadata', {}).get('keywords', [])),
+              
+                    'match_reasons': top_result.get('match_reason', top_result.get('explanation'))
                 })
+                
+
+                if self.query_data.get('profile_score') and filters:
+         
+                    base_score = self.query_data['profile_score']
+                    context_bonus = 0.1 if filters.get('filter_applied') else 0
+                    self.query_data['combined_score'] = min(1.0, base_score + context_bonus)
+                    self.query_data['context_score'] = context_bonus
                 
                 # Store relevant metadata
                 metadata = {
@@ -109,12 +125,14 @@ class QueryTracker:
                 }
                 self.query_data['result_metadata'] = {k: v for k, v in metadata.items() if v}
             else:
-                # Set required fields to default values when no results
+      
                 self.query_data.update({
                     'profile_id': 'no_result',
                     'profile_name': 'No Results Found',
                     'profile_oid': '',
-                    'profile_score': 0.0
+                    'profile_score': 0.0,
+                    'keywords': [],  # Add this
+                    'match_reasons': 'No results found'  # Add this
                 })
             
             # Save to database
@@ -133,37 +151,6 @@ class QueryTracker:
         finally:
             # Reset tracking state
             self._reset_tracking()
-    
-    def update_user_interaction(self, query_id: str, interaction_type: str, 
-                               feedback: Optional[str] = None, db: Session = None):
-        """Update query record with user interaction data"""
-        if not db:
-            return False
-        
-        try:
-            query_record = db.query(QueryPerformance).filter(
-                QueryPerformance.id == query_id
-            ).first()
-            
-            if query_record:
-                if interaction_type == 'result_clicked':
-                    query_record.result_clicked = True
-                elif interaction_type == 'feedback' and feedback:
-                    query_record.feedback_given = feedback
-                    # Calculate time to feedback if we have the query date
-                    if query_record.query_date:
-                        time_diff = (datetime.utcnow() - query_record.query_date).total_seconds()
-                        query_record.time_to_feedback = int(time_diff)
-                
-                db.commit()
-                return True
-            
-        except Exception as e:
-            print(f"❌ Error updating user interaction: {e}")
-            if db:
-                db.rollback()
-        
-        return False
     
     def _reset_tracking(self):
         """Reset tracking state for next query"""

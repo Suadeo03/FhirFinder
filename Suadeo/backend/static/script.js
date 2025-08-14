@@ -499,22 +499,21 @@ document.addEventListener('keypress', function(e) {
 
 async function checkNarrativeStatus() {
     try {
-        const response = await fetch('http://localhost:8000/api/v1/search/narrative/status');
-        const status = await response.json();
+        // First check if Ollama is running at all
+        const response = await fetch('http://localhost:11434/api/version');
         
-        if (!status.available) {
-            console.warn('Conversational AI not available:', status);
-            // Optionally show a notice to users
-            showNarrativeStatusNotice(status);
+        if (response.ok) {
+            return { available: true };
+        } else {
+            return { available: false, error: 'Ollama not responding' };
         }
         
-        return status;
     } catch (error) {
-        console.error('Error checking narrative status:', error);
-        return { available: false, error: error.message };
+        // Network error - Ollama probably not running
+        console.warn('Ollama not available:', error.message);
+        return { available: false, error: 'Ollama service not running' };
     }
 }
-
 function showNarrativeStatusNotice(status) {
     // Optional: Show a small notice that AI narrative is unavailable
     const notice = document.createElement('div');

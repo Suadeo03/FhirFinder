@@ -13,12 +13,15 @@ import httpx
 from datetime import datetime
 from api.v1.endpoints.search import router as search_router
 from api.v1.endpoints.datasets import router as datasets_router
-from api.v1.endpoints.query_performance import router as queryperformance_router
+from api.v1.endpoints.form_training_interface import router as form_trainer
+from api.v1.endpoints.V2_training_interface import router as v2_trainer
+from api.v1.endpoints.profile_training_interface import router as profile_trainer
 from api.v1.endpoints.feedback import router as feedback_router
 from api.v1.endpoints.formsets import router as formsets_router
 from api.v1.endpoints.formLookup import router as formlookup_router
 from api.v1.endpoints.v2_mapping_search import router as v2_mapping_router
 from api.v1.endpoints.elt_api_v2_mapping import router as elt_api_v2_mapping_router
+from api.v1.endpoints.query_performance import router as query_performance_router
 
 from config.database import init_database, get_db
 from config.chroma import ChromaConfig
@@ -44,15 +47,17 @@ app.add_middleware(
 
 # Include routers
 app.include_router(search_router, prefix="/api/v1", tags=["search"])
-app.include_router(datasets_router, prefix="/api/v1", tags=["datasets"])
-app.include_router(queryperformance_router, prefix="/api/v1", tags=["performance"])
+app.include_router(datasets_router, prefix="/api/v1", tags=["elt_service"])
+app.include_router(query_performance_router, prefix="/api/v1", tags=["metrics"])
 app.include_router(feedback_router, prefix="/api/v1", tags=["feedback"])
-app.include_router(formsets_router, prefix="/api/v1", tags=["formsets"])
-app.include_router(formlookup_router, prefix="/api/v1", tags=["formlookup"])
-app.include_router(v2_mapping_router, prefix="/api/v1", tags=["v2_mapping_search"])
+app.include_router(formsets_router, prefix="/api/v1", tags=["etl_service"])
+app.include_router(formlookup_router, prefix="/api/v1", tags=["serach"])
+app.include_router(v2_mapping_router, prefix="/api/v1", tags=["search"])
 app.include_router(elt_api_v2_mapping_router, prefix="/api/v1", tags=["elt_api_v2_mapping"])
+app.include_router(form_trainer, prefix="/api/v1", tags=["model_training"])
+app.include_router(profile_trainer, prefix="/api/v1", tags=["model_training"])
+app.include_router(v2_trainer, prefix="/api/v1", tags=["model_training"])
 
-# Mount static files
 static_dir = "static"
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -307,6 +312,6 @@ async def detailed_health_check():
         }
 
 # Only run uvicorn if this file is executed directly (not when imported)
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+#if __name__ == "__main__":
+#    import uvicorn
+#    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

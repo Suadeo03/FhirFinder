@@ -39,8 +39,7 @@ async def search_profiles(request: SearchRequest, db: Session = Depends(get_db))
                 summary = summarizer.summarize_results(request.query, results)
             except Exception as e:
                 print(f"Summary generation failed: {e}")
-                if results:
-                    summary = f"Found {len(results)} FHIR profiles for '{request.query}'."
+
 
         return SearchResponse(
             query=request.query,
