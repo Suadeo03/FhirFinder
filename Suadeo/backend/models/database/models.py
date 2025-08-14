@@ -87,22 +87,3 @@ class ProcessingJob(Base):
     def __repr__(self):
         return f"<ProcessingJob(id='{self.id}', type='{self.job_type}', status='{self.status}')>"
 
-class QueryPerformance(Base):
-    """Track zero-shot query performance"""
-    __tablename__ = "query_performance"
-
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    profile_id = Column(String, nullable=False)
-    query_text = Column(String(500), nullable=False)
-    query_date = Column(DateTime, default=datetime.utcnow)
-    profile_name = Column(String(500), nullable=False)  
-    profile_oid = Column(String(75), nullable=False)  
-    profile_score = Column(Float, nullable=False)  
-    context_score = Column(Float, nullable=False)  
-    combined_score = Column(Float, nullable=False) 
-    match_reasons = Column(Text)  
-    keywords = Column(JSON)  
-
-    def __repr__(self):
-        return f"<ProcessingJob(id='{self.id}', type='{self.job_type}', status='{self.status}')>"

@@ -1,5 +1,5 @@
 # backend/api/v1/endpoints/query_performance.py
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, asc
@@ -9,10 +9,11 @@ from datetime import datetime, timedelta
 import csv
 import io
 import json
-
+import numpy as np
 from config.database import get_db
 from config.chroma import get_chroma_instance
-from models.database.models import QueryPerformance  # Try this path instead
+from models.database.query_performance_model import QueryPerformance
+from models.database.feedback_models import UserFeedback, SearchQualityMetrics
 from sentence_transformers import SentenceTransformer
 
 router = APIRouter()
@@ -139,7 +140,7 @@ async def get_query_performance_data(
 ):
     """Get query performance data with filtering and pagination"""
     try:
-        # Build query with filters
+  
         query = db.query(QueryPerformance)
         
         if query_text:
@@ -162,18 +163,17 @@ async def get_query_performance_data(
         
         if end_date:
             query = query.filter(QueryPerformance.query_date <= end_date)
-        
-        # Apply ordering
+ 
         order_field = getattr(QueryPerformance, order_by, QueryPerformance.query_date)
         if order_desc:
             query = query.order_by(desc(order_field))
         else:
             query = query.order_by(asc(order_field))
         
-        # Apply pagination
+      
         results = query.offset(skip).limit(limit).all()
         
-        # Convert to response models
+        
         response_data = []
         for result in results:
             response_data.append(QueryPerformanceResponse(
@@ -253,28 +253,25 @@ async def export_query_performance_to_csv(
         if end_date and hasattr(QueryPerformance, 'query_date'):
             query = query.filter(QueryPerformance.query_date <= end_date)
         
-        # Order by date and limit
+ 
         if hasattr(QueryPerformance, 'query_date'):
             query = query.order_by(desc(QueryPerformance.query_date))
         query = query.limit(max_records)
         results = query.all()
         
-        # Check if we have any data
         if not results:
             total_count = db.query(QueryPerformance).count()
             return {"message": f"No data found with the given filters. Total records in DB: {total_count}"}
-        
-        # Helper function to safely get attribute
+ 
         def safe_get(obj, attr, default=''):
             return getattr(obj, attr, default) if hasattr(obj, attr) else default
-        
-        # Create CSV content in memory (not streaming to avoid async issues)
+
         output = io.StringIO()
         
-        # Define CSV headers based on what columns actually exist
+        
         available_columns = [column.name for column in QueryPerformance.__table__.columns]
         
-        # Use only columns that exist in the database
+   
         base_headers = []
         for col in ['id', 'profile_id', 'query_text', 'query_normalized', 'query_date',
                    'profile_name', 'profile_oid', 'profile_score', 'context_score', 'combined_score',
@@ -286,7 +283,7 @@ async def export_query_performance_to_csv(
             if col in available_columns:
                 base_headers.append(col)
         
-        # Add embedding headers if requested
+      
         if include_embeddings:
             base_headers.extend([
                 'embedding_available', 'embedding_similarity', 'chroma_document', 'chroma_metadata'
@@ -312,7 +309,7 @@ async def export_query_performance_to_csv(
             
             for col in base_headers:
                 if col in ['embedding_available', 'embedding_similarity', 'chroma_document', 'chroma_metadata']:
-                    continue  # Skip embedding columns for now
+                    continue  
                 
                 if col == 'query_date':
                     value = result.query_date.isoformat() if hasattr(result, 'query_date') and result.query_date else ''
@@ -323,8 +320,7 @@ async def export_query_performance_to_csv(
                     value = safe_get(result, col)
                 
                 row_data.append(value)
-            
-            # Add embedding data if requested
+
             if include_embeddings:
                 embedding_available = False
                 embedding_similarity = None
@@ -398,7 +394,7 @@ async def get_query_performance_with_embedding(
         if not query_perf:
             raise HTTPException(status_code=404, detail="Query performance record not found")
         
-        # Convert to response model
+
         performance_response = QueryPerformanceResponse(
             id=query_perf.id,
             profile_id=query_perf.profile_id,
@@ -456,7 +452,7 @@ async def get_query_performance_with_embedding(
                         'embedding_dimension': len(results['embeddings'][0]) if results['embeddings'] else 0
                     }
                     
-                    # Calculate similarity between query and result embedding
+                  
                     if results['embeddings'] and query_perf.query_text:
                         model = SentenceTransformer('all-MiniLM-L6-v2')
                         query_embedding = model.encode([query_perf.query_text])[0]
@@ -465,8 +461,7 @@ async def get_query_performance_with_embedding(
                         import numpy as np
                         query_vec = np.array(query_embedding)
                         result_vec = np.array(result_embedding)
-                        
-                        # Cosine similarity
+                      
                         embedding_similarity = float(np.dot(query_vec, result_vec) / 
                                                    (np.linalg.norm(query_vec) * np.linalg.norm(result_vec)))
                         
@@ -625,7 +620,7 @@ async def analyze_embedding_similarity(
 ):
     """Analyze embedding similarity for a query against other queries"""
     try:
-        # Get the source query
+    
         source_query = db.query(QueryPerformance).filter(QueryPerformance.id == query_id).first()
         if not source_query:
             raise HTTPException(status_code=404, detail="Query not found")
@@ -633,26 +628,24 @@ async def analyze_embedding_similarity(
         chroma = get_chroma_instance()
         if not chroma.is_available():
             raise HTTPException(status_code=503, detail="ChromaDB not available")
-        
-        # Generate embedding for source query
+     
         model = SentenceTransformer('all-MiniLM-L6-v2')
         source_embedding = model.encode([source_query.query_text])[0]
         
-        # Get other queries from the same time period
+     
         comparison_queries = db.query(QueryPerformance).filter(
             QueryPerformance.id != query_id,
             QueryPerformance.query_date >= source_query.query_date - timedelta(days=30),
             QueryPerformance.has_results == True
-        ).limit(1000).all()  # Limit for performance
+        ).limit(1000).all()  
         
         similar_queries = []
         
         for comp_query in comparison_queries:
             try:
-                # Generate embedding for comparison query
+     
                 comp_embedding = model.encode([comp_query.query_text])[0]
-                
-                # Calculate similarity
+ 
                 import numpy as np
                 source_vec = np.array(source_embedding)
                 comp_vec = np.array(comp_embedding)
@@ -675,11 +668,10 @@ async def analyze_embedding_similarity(
                 print(f"Error comparing query {comp_query.id}: {e}")
                 continue
         
-        # Sort by similarity and limit results
+
         similar_queries.sort(key=lambda x: x['similarity_score'], reverse=True)
         similar_queries = similar_queries[:max_results]
-        
-        # Basic cluster analysis
+   
         cluster_info = None
         if len(similar_queries) > 0:
             similarities = [q['similarity_score'] for q in similar_queries]
@@ -710,16 +702,16 @@ def _extract_common_terms(queries: List[str], min_frequency: int = 2) -> List[st
         from collections import Counter
         import re
         
-        # Simple term extraction (split on whitespace and clean)
+
         all_terms = []
         for query in queries:
             terms = re.findall(r'\b\w+\b', query.lower())
             all_terms.extend(terms)
         
-        # Count term frequency
+ 
         term_counts = Counter(all_terms)
         
-        # Return terms that appear at least min_frequency times
+
         common_terms = [term for term, count in term_counts.items() 
                        if count >= min_frequency and len(term) > 2]
         
@@ -750,114 +742,1288 @@ async def delete_query_performance_record(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete record: {str(e)}")
 
-@router.delete("/query-performance/cleanup")
-async def cleanup_old_query_performance_data(
-    days_to_keep: int = Query(90, description="Number of days of data to keep"),
-    dry_run: bool = Query(True, description="Preview deletion without actually deleting"),
+@router.get("/query-performance/export/csv-with-feedback")
+async def export_query_performance_with_feedback_analysis(
+    query_text: Optional[str] = Query(None, description="Filter by query text"),
+    profile_id: Optional[str] = Query(None, description="Filter by profile ID"),
+    feedback_type: Optional[str] = Query(None, description="Filter by feedback type"),
+    start_date: Optional[datetime] = Query(None, description="Filter queries after this date"),
+    end_date: Optional[datetime] = Query(None, description="Filter queries before this date"),
+    include_embeddings: bool = Query(True, description="Include embedding vectors"),
+    include_feedback_analysis: bool = Query(True, description="Include feedback effectiveness analysis"),
+    max_records: int = Query(1000, description="Maximum number of records to export"),
     db: Session = Depends(get_db)
 ):
-    """Clean up old query performance data"""
+    """Export query performance data with comprehensive feedback analysis"""
     try:
-        cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+        # Enhanced query with feedback joins
+        query = db.query(QueryPerformance).outerjoin(
+            UserFeedback, QueryPerformance.id == UserFeedback.query_performance_id
+        ).outerjoin(
+            SearchQualityMetrics, 
+            QueryPerformance.query_normalized == SearchQualityMetrics.query_normalized
+        )
         
-        # Count records to be deleted
-        records_to_delete = db.query(QueryPerformance).filter(
-            QueryPerformance.query_date < cutoff_date
-        ).count()
+        # Apply filters
+        if query_text:
+            query = query.filter(QueryPerformance.query_text.ilike(f"%{query_text}%"))
+        if profile_id:
+            query = query.filter(QueryPerformance.profile_id == profile_id)
+        if feedback_type:
+            query = query.filter(UserFeedback.feedback_type == feedback_type)
+        if start_date:
+            query = query.filter(QueryPerformance.query_date >= start_date)
+        if end_date:
+            query = query.filter(QueryPerformance.query_date <= end_date)
         
-        if dry_run:
-            return {
-                "message": "Dry run completed",
-                "records_to_delete": records_to_delete,
-                "cutoff_date": cutoff_date.isoformat(),
-                "days_to_keep": days_to_keep
-            }
-        else:
-            # Actually delete the records
-            deleted_count = db.query(QueryPerformance).filter(
-                QueryPerformance.query_date < cutoff_date
-            ).delete()
+        query = query.order_by(desc(QueryPerformance.query_date)).limit(max_records)
+        results = query.all()
+        
+        if not results:
+            raise HTTPException(status_code=404, detail="No data found")
+        
+        # Prepare CSV headers
+        base_headers = [
+            'id', 'query_text', 'query_normalized', 'query_date', 'profile_id', 'profile_name',
+            'result_count', 'has_results', 'top_result_score', 'search_duration_ms'
+        ]
+        
+        # Add feedback analysis headers
+        feedback_headers = [
+            'has_feedback', 'feedback_type', 'feedback_timestamp', 'feedback_user_id',
+            'original_score_at_feedback', 'score_improvement', 'feedback_delay_seconds',
+            'cumulative_positive_feedback', 'cumulative_negative_feedback', 'feedback_ratio',
+            'query_learning_effectiveness', 'profile_feedback_count'
+        ]
+        
+        # Add embedding headers
+        embedding_headers = []
+        if include_embeddings:
+            embedding_headers = [
+                'query_embedding', 'result_embedding_current', 'result_embedding_original',
+                'embedding_similarity_current', 'embedding_similarity_original', 'embedding_drift',
+                'feedback_driven_similarity_change'
+            ]
+        
+        all_headers = base_headers + feedback_headers + embedding_headers
+        
+        # Initialize ChromaDB and model for embeddings
+        chroma = None
+        model = None
+        if include_embeddings:
+            try:
+                chroma = get_chroma_instance()
+                model = SentenceTransformer('all-MiniLM-L6-v2')
+            except Exception as e:
+                print(f"ChromaDB not available: {e}")
+        
+        # Prepare CSV data
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(all_headers)
+        
+        for result in results:
+            row_data = []
             
-            db.commit()
+            # Basic query performance data
+            row_data.extend([
+                result.id,
+                result.query_text,
+                result.query_normalized,
+                result.query_date.isoformat() if result.query_date else '',
+                result.profile_id,
+                result.profile_name,
+                result.result_count,
+                result.has_results,
+                result.top_result_score,
+                result.search_duration_ms
+            ])
             
-            return {
-                "message": "Cleanup completed",
-                "records_deleted": deleted_count,
-                "cutoff_date": cutoff_date.isoformat(),
-                "days_to_keep": days_to_keep
-            }
+            # Feedback analysis data
+            feedback_data = get_feedback_analysis_for_record(result, db)
+            row_data.extend([
+                feedback_data['has_feedback'],
+                feedback_data['feedback_type'],
+                feedback_data['feedback_timestamp'],
+                feedback_data['feedback_user_id'],
+                feedback_data['original_score_at_feedback'],
+                feedback_data['score_improvement'],
+                feedback_data['feedback_delay_seconds'],
+                feedback_data['cumulative_positive_feedback'],
+                feedback_data['cumulative_negative_feedback'],
+                feedback_data['feedback_ratio'],
+                feedback_data['query_learning_effectiveness'],
+                feedback_data['profile_feedback_count']
+            ])
+            
+            # Embedding analysis data
+            if include_embeddings and chroma and model:
+                embedding_data = get_embedding_analysis_for_record(result, chroma, model)
+                row_data.extend([
+                    json.dumps(embedding_data['query_embedding']) if embedding_data['query_embedding'] else '',
+                    json.dumps(embedding_data['result_embedding_current']) if embedding_data['result_embedding_current'] else '',
+                    json.dumps(embedding_data['result_embedding_original']) if embedding_data['result_embedding_original'] else '',
+                    embedding_data['embedding_similarity_current'],
+                    embedding_data['embedding_similarity_original'],
+                    embedding_data['embedding_drift'],
+                    embedding_data['feedback_driven_similarity_change']
+                ])
+            elif include_embeddings:
+                row_data.extend([''] * len(embedding_headers))
+            
+            writer.writerow(row_data)
+        
+        # Return CSV
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"query_performance_with_feedback_{len(results)}records_{timestamp}.csv"
+        
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
         
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
-
-@router.get("/query-performance/debug/autoload")
-async def debug_with_autoload(db: Session = Depends(get_db)):
-    """Test with autoloaded model"""
+# Add these missing functions to your endpoint file:
+def get_feedback_analysis_for_record_fixed(record, db: Session) -> Dict:
+    """Get comprehensive feedback analysis for a single record - using correct schema"""
     try:
-        from sqlalchemy import MetaData, Table
-        from sqlalchemy.orm import sessionmaker
-        from config.database import engine
+        from models.database.feedback_models import UserFeedback
         
-        # Create autoloaded table
-        metadata = MetaData()
-        autoloaded_table = Table('query_performance', metadata, autoload_with=engine)
+        # Get feedback for this record using your actual schema
+        feedback = db.query(UserFeedback).filter(
+            UserFeedback.query_normalized == record.query_normalized,
+            UserFeedback.profile_id == record.profile_id
+        ).order_by(UserFeedback.created_at).all()
         
-        # Query using the autoloaded table
-        result = db.execute(autoloaded_table.select().limit(1)).first()
-        
-        if result:
-            # Convert to dict to see all fields
-            result_dict = dict(result._mapping)
-            
+        if not feedback:
             return {
-                "message": "Autoloaded table test",
-                "autoloaded_columns": [col.name for col in autoloaded_table.columns],
-                "autoloaded_columns_count": len(autoloaded_table.columns),
-                "sample_data_keys": list(result_dict.keys()),
-                "sample_data": {k: str(v)[:50] if v else v for k, v in result_dict.items()}
+                'has_feedback': False,
+                'feedback_type': '',
+                'feedback_timestamp': '',
+                'feedback_user_id': '',
+                'original_score_at_feedback': '',
+                'score_improvement': '',
+                'feedback_delay_seconds': '',
+                'cumulative_positive_feedback': 0,
+                'cumulative_negative_feedback': 0,
+                'feedback_ratio': 0.0,
+                'query_learning_effectiveness': 0.0,
+                'profile_feedback_count': 0
             }
-        else:
-            return {
-                "message": "No records found",
-                "autoloaded_columns": [col.name for col in autoloaded_table.columns],
-                "autoloaded_columns_count": len(autoloaded_table.columns)
-            }
-            
-    except Exception as e:
-        return {"error": f"Autoload test failed: {str(e)}"}
-    
-@router.get("/query-performance/debug/force-reflect")
-async def debug_with_reflection(db: Session = Depends(get_db)):
-    """Force SQLAlchemy to reflect the actual database schema"""
-    try:
-        from sqlalchemy import MetaData, Table, inspect
-        from config.database import engine
         
-        # Method 1: Check what's in the database directly
-        inspector = inspect(engine)
-        db_columns = inspector.get_columns('query_performance')
+        latest_feedback = feedback[-1]
         
-        # Method 2: Force reflection of the table
-        metadata = MetaData()
-        reflected_table = Table('query_performance', metadata, autoload_with=engine)
+        # Calculate metrics using your exact field names
+        positive_count = sum(1 for f in feedback if f.feedback_type == 'positive')
+        negative_count = sum(1 for f in feedback if f.feedback_type == 'negative')
+        total_feedback = positive_count + negative_count
+        feedback_ratio = positive_count / total_feedback if total_feedback > 0 else 0.0
         
-        # Method 3: Check current model columns
-        model_columns = [column.name for column in QueryPerformance.__table__.columns]
+        # Calculate score improvement
+        score_improvement = ''
+        if len(feedback) > 1:
+            first_score = feedback[0].original_score
+            latest_score = latest_feedback.original_score
+            if first_score is not None and latest_score is not None:
+                score_improvement = latest_score - first_score
         
-        # Method 4: Try to get a record with reflection
-        result = db.execute(reflected_table.select().limit(1)).first()
+        # Calculate feedback delay
+        feedback_delay = ''
+        if record.query_date and latest_feedback.created_at:
+            delay = (latest_feedback.created_at - record.query_date).total_seconds()
+            feedback_delay = delay
+        
+        # Calculate learning effectiveness
+        scores = [f.original_score for f in feedback if f.original_score is not None]
+        learning_effectiveness = calculate_learning_effectiveness_simple(scores)
         
         return {
-            "database_columns_count": len(db_columns),
-            "database_columns": [col['name'] for col in db_columns],
-            "reflected_table_columns": [col.name for col in reflected_table.columns],
-            "model_columns": model_columns,
-            "model_columns_count": len(model_columns),
-            "sample_record_keys": list(result.keys()) if result else "No records",
-            "issue_identified": len(db_columns) != len(model_columns)
+            'has_feedback': True,
+            'feedback_type': latest_feedback.feedback_type,
+            'feedback_timestamp': latest_feedback.created_at.isoformat() if latest_feedback.created_at else '',
+            'feedback_user_id': latest_feedback.user_id,
+            'original_score_at_feedback': latest_feedback.original_score,
+            'score_improvement': score_improvement,
+            'feedback_delay_seconds': feedback_delay,
+            'cumulative_positive_feedback': positive_count,
+            'cumulative_negative_feedback': negative_count,
+            'feedback_ratio': feedback_ratio,
+            'query_learning_effectiveness': learning_effectiveness,
+            'profile_feedback_count': len(feedback)
         }
         
     except Exception as e:
-        return {"error": f"Reflection failed: {str(e)}"}
+        print(f"Error analyzing feedback for record {record.id}: {e}")
+        return {
+            'has_feedback': False,
+            'feedback_type': '',
+            'feedback_timestamp': '',
+            'feedback_user_id': '',
+            'original_score_at_feedback': '',
+            'score_improvement': '',
+            'feedback_delay_seconds': '',
+            'cumulative_positive_feedback': 0,
+            'cumulative_negative_feedback': 0,
+            'feedback_ratio': 0.0,
+            'query_learning_effectiveness': 0.0,
+            'profile_feedback_count': 0
+        }
+
+def calculate_engagement_rate_fixed(db: Session, start_date: datetime, end_date: datetime) -> float:
+    """Calculate user engagement rate with feedback - using correct schema"""
+    try:
+        from models.database.feedback_models import UserFeedback
+        
+        # Total queries in period
+        total_queries = db.query(QueryPerformance).filter(
+            QueryPerformance.query_date >= start_date,
+            QueryPerformance.query_date <= end_date
+        ).count()
+        
+        # Unique queries that received feedback
+        queries_with_feedback = db.query(QueryPerformance).join(
+            UserFeedback, 
+            QueryPerformance.query_normalized == UserFeedback.query_normalized
+        ).filter(
+            QueryPerformance.query_date >= start_date,
+            QueryPerformance.query_date <= end_date,
+            UserFeedback.created_at >= start_date,
+            UserFeedback.created_at <= end_date
+        ).distinct().count()
+        
+        return (queries_with_feedback / total_queries * 100) if total_queries > 0 else 0.0
+        
+    except Exception as e:
+        print(f"Error calculating engagement rate: {e}")
+        return 0.0
+
+def analyze_score_improvements_fixed(feedback_data, db: Session) -> Dict:
+    """Analyze how scores improve after feedback - using correct schema"""
+    improvements = []
+    
+    # Group by query and profile
+    query_profile_groups = {}
+    for feedback in feedback_data:
+        key = (feedback.query_normalized, feedback.profile_id)
+        if key not in query_profile_groups:
+            query_profile_groups[key] = []
+        query_profile_groups[key].append(feedback)
+    
+    for (query, profile_id), feedback_list in query_profile_groups.items():
+        if len(feedback_list) < 2:
+            continue
+        
+        # Sort by created_at
+        feedback_list.sort(key=lambda x: x.created_at)
+        
+        # Calculate improvement using original_score
+        first_score = feedback_list[0].original_score
+        last_score = feedback_list[-1].original_score
+        
+        if first_score is not None and last_score is not None:
+            improvement = last_score - first_score
+            time_span_days = (feedback_list[-1].created_at - feedback_list[0].created_at).days
+            
+            improvements.append({
+                'query': query,
+                'profile_id': profile_id,
+                'initial_score': first_score,
+                'final_score': last_score,
+                'improvement': improvement,
+                'feedback_count': len(feedback_list),
+                'time_span_days': time_span_days
+            })
+    
+    if not improvements:
+        return {
+            'average_improvement': 0.0,
+            'positive_improvements': 0,
+            'negative_improvements': 0,
+            'total_analyzed': 0,
+            'best_improvements': [],
+            'worst_improvements': []
+        }
+    
+    avg_improvement = sum(imp['improvement'] for imp in improvements) / len(improvements)
+    positive_improvements = sum(1 for imp in improvements if imp['improvement'] > 0)
+    negative_improvements = sum(1 for imp in improvements if imp['improvement'] < 0)
+    
+    # Sort for best/worst
+    improvements.sort(key=lambda x: x['improvement'], reverse=True)
+    
+    return {
+        'average_improvement': avg_improvement,
+        'positive_improvements': positive_improvements,
+        'negative_improvements': negative_improvements,
+        'total_analyzed': len(improvements),
+        'best_improvements': improvements[:10],
+        'worst_improvements': improvements[-10:],
+        'improvement_distribution': {
+            'significant_positive': sum(1 for imp in improvements if imp['improvement'] > 0.1),
+            'moderate_positive': sum(1 for imp in improvements if 0.05 < imp['improvement'] <= 0.1),
+            'slight_positive': sum(1 for imp in improvements if 0 < imp['improvement'] <= 0.05),
+            'no_change': sum(1 for imp in improvements if imp['improvement'] == 0),
+            'slight_negative': sum(1 for imp in improvements if -0.05 <= imp['improvement'] < 0),
+            'moderate_negative': sum(1 for imp in improvements if -0.1 <= imp['improvement'] < -0.05),
+            'significant_negative': sum(1 for imp in improvements if imp['improvement'] < -0.1)
+        }
+    }
+
+def analyze_query_learning_patterns_fixed(feedback_data) -> Dict:
+    """Analyze which types of queries learn best from feedback - using correct schema"""
+    query_analysis = {}
+    
+    for feedback in feedback_data:
+        query = feedback.query_normalized
+        if query not in query_analysis:
+            query_analysis[query] = {
+                'total_feedback': 0,
+                'positive_feedback': 0,
+                'negative_feedback': 0,
+                'unique_profiles': set(),
+                'score_changes': [],
+                'feedback_scores': []
+            }
+        
+        query_analysis[query]['total_feedback'] += 1
+        if feedback.feedback_type == 'positive':
+            query_analysis[query]['positive_feedback'] += 1
+        elif feedback.feedback_type == 'negative':
+            query_analysis[query]['negative_feedback'] += 1
+        
+        query_analysis[query]['unique_profiles'].add(feedback.profile_id)
+        if feedback.original_score:
+            query_analysis[query]['score_changes'].append(feedback.original_score)
+        if feedback.feedback_score:
+            query_analysis[query]['feedback_scores'].append(feedback.feedback_score)
+    
+    # Convert to list and calculate metrics
+    query_patterns = []
+    for query, data in query_analysis.items():
+        total_sentiment = data['positive_feedback'] + data['negative_feedback']
+        satisfaction_rate = (data['positive_feedback'] / total_sentiment) * 100 if total_sentiment > 0 else 0
+        
+        avg_feedback_score = sum(data['feedback_scores']) / len(data['feedback_scores']) if data['feedback_scores'] else 0
+        
+        query_patterns.append({
+            'query': query,
+            'total_feedback': data['total_feedback'],
+            'satisfaction_rate': satisfaction_rate,
+            'unique_profiles_affected': len(data['unique_profiles']),
+            'average_feedback_score': avg_feedback_score,
+            'learning_effectiveness': calculate_learning_effectiveness_simple(data['score_changes'])
+        })
+    
+    # Sort by total feedback
+    query_patterns.sort(key=lambda x: x['total_feedback'], reverse=True)
+    
+    return {
+        'top_feedback_queries': query_patterns[:20],
+        'most_satisfied_queries': sorted(query_patterns, key=lambda x: x['satisfaction_rate'], reverse=True)[:10],
+        'least_satisfied_queries': sorted(query_patterns, key=lambda x: x['satisfaction_rate'])[:10],
+        'best_learning_queries': sorted(query_patterns, key=lambda x: x['learning_effectiveness'], reverse=True)[:10]
+    }
+
+def analyze_temporal_trends_fixed(feedback_data, days_back: int) -> Dict:
+    """Analyze feedback trends over time - using correct schema"""
+    try:
+        # Group feedback by day using created_at
+        daily_stats = {}
+        
+        for feedback in feedback_data:
+            day = feedback.created_at.date()
+            if day not in daily_stats:
+                daily_stats[day] = {
+                    'positive': 0, 
+                    'negative': 0, 
+                    'neutral': 0, 
+                    'total': 0,
+                    'total_score': 0.0,
+                    'feedback_scores': []
+                }
+            
+            daily_stats[day]['total'] += 1
+            if feedback.feedback_type == 'positive':
+                daily_stats[day]['positive'] += 1
+            elif feedback.feedback_type == 'negative':
+                daily_stats[day]['negative'] += 1
+            elif feedback.feedback_type == 'neutral':
+                daily_stats[day]['neutral'] += 1
+                
+            if feedback.original_score:
+                daily_stats[day]['total_score'] += feedback.original_score
+            if feedback.feedback_score:
+                daily_stats[day]['feedback_scores'].append(feedback.feedback_score)
+        
+        # Convert to list and sort by date
+        daily_trends = []
+        for day, stats in daily_stats.items():
+            sentiment_total = stats['positive'] + stats['negative']
+            satisfaction_rate = (stats['positive'] / sentiment_total) * 100 if sentiment_total > 0 else 0
+            
+            avg_original_score = stats['total_score'] / stats['total'] if stats['total'] > 0 else 0
+            avg_feedback_score = sum(stats['feedback_scores']) / len(stats['feedback_scores']) if stats['feedback_scores'] else 0
+            
+            daily_trends.append({
+                'date': day.isoformat(),
+                'total_feedback': stats['total'],
+                'positive_feedback': stats['positive'],
+                'negative_feedback': stats['negative'],
+                'neutral_feedback': stats['neutral'],
+                'satisfaction_rate': satisfaction_rate,
+                'average_original_score': avg_original_score,
+                'average_feedback_score': avg_feedback_score
+            })
+        
+        daily_trends.sort(key=lambda x: x['date'])
+        
+        return {
+            'daily_trends': daily_trends,
+            'trend_summary': {
+                'total_days_with_feedback': len(daily_trends),
+                'average_daily_feedback': sum(d['total_feedback'] for d in daily_trends) / len(daily_trends) if daily_trends else 0,
+                'peak_feedback_day': max(daily_trends, key=lambda x: x['total_feedback']) if daily_trends else None,
+                'best_satisfaction_day': max(daily_trends, key=lambda x: x['satisfaction_rate']) if daily_trends else None
+            }
+        }
+        
+    except Exception as e:
+        print(f"Error analyzing temporal trends: {e}")
+        return {'daily_trends': [], 'trend_summary': {}}
+
+@router.get("/feedback/analysis/effectiveness")
+async def analyze_feedback_effectiveness(
+    days_back: int = Query(30, description="Days to analyze"),
+    profile_id: Optional[str] = Query(None, description="Specific profile to analyze"),
+    db: Session = Depends(get_db)
+):
+    """Comprehensive analysis of feedback learning effectiveness - FIXED VERSION"""
+    try:
+        from models.database.feedback_models import UserFeedback
+        
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days_back)
+        
+        # Base query using created_at field
+        query = db.query(UserFeedback).filter(
+            UserFeedback.created_at >= start_date
+        )
+        
+        if profile_id:
+            query = query.filter(UserFeedback.profile_id == profile_id)
+        
+        feedback_data = query.all()
+        
+        # Overall metrics
+        total_feedback = len(feedback_data)
+        positive_feedback = sum(1 for f in feedback_data if f.feedback_type == 'positive')
+        negative_feedback = sum(1 for f in feedback_data if f.feedback_type == 'negative')
+        neutral_feedback = sum(1 for f in feedback_data if f.feedback_type == 'neutral')
+        
+        # Average scores
+        original_scores = [f.original_score for f in feedback_data if f.original_score is not None]
+        feedback_scores = [f.feedback_score for f in feedback_data if f.feedback_score is not None]
+        
+        avg_original_score = sum(original_scores) / len(original_scores) if original_scores else 0
+        avg_feedback_score = sum(feedback_scores) / len(feedback_scores) if feedback_scores else 0
+        
+        return {
+            "analysis_period": {
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "days_analyzed": days_back
+            },
+            "overall_metrics": {
+                "total_feedback_count": total_feedback,
+                "positive_feedback_count": positive_feedback,
+                "negative_feedback_count": negative_feedback,
+                "neutral_feedback_count": neutral_feedback,
+                "satisfaction_rate": (positive_feedback / (positive_feedback + negative_feedback)) * 100 if (positive_feedback + negative_feedback) > 0 else 0,
+                "average_original_score": avg_original_score,
+                "average_feedback_score": avg_feedback_score,
+                "feedback_engagement_rate": calculate_engagement_rate_fixed(db, start_date, end_date)
+            },
+            "score_improvement_analysis": analyze_score_improvements_fixed(feedback_data, db),
+            "query_learning_patterns": analyze_query_learning_patterns_fixed(feedback_data),
+            "temporal_trends": analyze_temporal_trends_fixed(feedback_data, days_back),
+            "recommendations": generate_learning_recommendations_fixed(feedback_data, positive_feedback, negative_feedback, total_feedback)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+def generate_learning_recommendations_fixed(feedback_data, positive_count, negative_count, total_count) -> List[str]:
+    """Generate actionable recommendations based on analysis"""
+    recommendations = []
+    
+    if total_count == 0:
+        recommendations.append("No feedback data found - consider implementing user feedback collection")
+        return recommendations
+    
+    satisfaction_rate = (positive_count / (positive_count + negative_count)) * 100 if (positive_count + negative_count) > 0 else 0
+    
+    if satisfaction_rate < 30:
+        recommendations.append("Low satisfaction rate (<30%) - review search algorithm and result relevance")
+    elif satisfaction_rate < 50:
+        recommendations.append("Moderate satisfaction rate - consider fine-tuning search parameters")
+    elif satisfaction_rate > 80:
+        recommendations.append("High satisfaction rate - system is performing well")
+    
+    if negative_count > positive_count * 2:
+        recommendations.append("High negative feedback ratio - investigate common negative feedback patterns")
+    
+    if total_count < 50:
+        recommendations.append("Low feedback volume - consider incentivizing user feedback or making feedback UI more prominent")
+    
+    # Check for recent trends
+    recent_feedback = [f for f in feedback_data if (datetime.utcnow() - f.created_at).days <= 7]
+    if len(recent_feedback) < total_count * 0.3:
+        recommendations.append("Declining feedback activity - engage users to maintain feedback flow")
+    
+    if not recommendations:
+        recommendations.append("System appears to be learning effectively from feedback")
+    
+    return recommendations
+
+def analyze_score_improvements(feedback_data, db: Session) -> Dict:
+    """Analyze how scores improve after feedback"""
+    improvements = []
+    
+    # Group by query and profile
+    query_profile_groups = {}
+    for feedback in feedback_data:
+        key = (feedback.query_normalized, feedback.profile_id)
+        if key not in query_profile_groups:
+            query_profile_groups[key] = []
+        query_profile_groups[key].append(feedback)
+    
+    for (query, profile_id), feedback_list in query_profile_groups.items():
+        if len(feedback_list) < 2:
+            continue
+        
+        # Sort by timestamp
+        feedback_list.sort(key=lambda x: x.timestamp)
+        
+        # Calculate improvement
+        first_score = feedback_list[0].original_score
+        last_score = feedback_list[-1].original_score
+        
+        if first_score is not None and last_score is not None:
+            improvement = last_score - first_score
+            improvements.append({
+                'query': query,
+                'profile_id': profile_id,
+                'initial_score': first_score,
+                'final_score': last_score,
+                'improvement': improvement,
+                'feedback_count': len(feedback_list),
+                'time_span_days': (feedback_list[-1].timestamp - feedback_list[0].timestamp).days
+            })
+    
+    if not improvements:
+        return {
+            'average_improvement': 0.0,
+            'positive_improvements': 0,
+            'negative_improvements': 0,
+            'total_analyzed': 0,
+            'best_improvements': [],
+            'worst_improvements': []
+        }
+    
+    avg_improvement = sum(imp['improvement'] for imp in improvements) / len(improvements)
+    positive_improvements = sum(1 for imp in improvements if imp['improvement'] > 0)
+    negative_improvements = sum(1 for imp in improvements if imp['improvement'] < 0)
+    
+    # Sort for best/worst
+    improvements.sort(key=lambda x: x['improvement'], reverse=True)
+    
+    return {
+        'average_improvement': avg_improvement,
+        'positive_improvements': positive_improvements,
+        'negative_improvements': negative_improvements,
+        'total_analyzed': len(improvements),
+        'best_improvements': improvements[:10],
+        'worst_improvements': improvements[-10:],
+        'improvement_distribution': {
+            'significant_positive': sum(1 for imp in improvements if imp['improvement'] > 0.1),
+            'moderate_positive': sum(1 for imp in improvements if 0.05 < imp['improvement'] <= 0.1),
+            'slight_positive': sum(1 for imp in improvements if 0 < imp['improvement'] <= 0.05),
+            'no_change': sum(1 for imp in improvements if imp['improvement'] == 0),
+            'slight_negative': sum(1 for imp in improvements if -0.05 <= imp['improvement'] < 0),
+            'moderate_negative': sum(1 for imp in improvements if -0.1 <= imp['improvement'] < -0.05),
+            'significant_negative': sum(1 for imp in improvements if imp['improvement'] < -0.1)
+        }
+    }
+
+def analyze_query_learning_patterns(feedback_data) -> Dict:
+    """Analyze which types of queries learn best from feedback"""
+    query_analysis = {}
+
+    for feedback in feedback_data:
+        query = feedback.query_normalized
+        if query not in query_analysis:
+            query_analysis[query] = {
+                'total_feedback': 0,
+                'positive_feedback': 0,
+                'negative_feedback': 0,
+                'unique_profiles': set(),
+                'score_changes': []
+            }
+            
+        query_analysis[query]['total_feedback'] += 1
+        if feedback.feedback_type == 'positive':
+            query_analysis[query]['positive_feedback'] += 1
+        elif feedback.feedback_type == 'negative':
+            query_analysis[query]['negative_feedback'] += 1
+        
+        query_analysis[query]['unique_profiles'].add(feedback.profile_id)
+        if feedback.original_score:
+            query_analysis[query]['score_changes'].append(feedback.original_score)
+
+    # Convert to list and calculate metrics
+    query_patterns = []
+    for query, data in query_analysis.items():
+        satisfaction_rate = (data['positive_feedback'] / 
+                        (data['positive_feedback'] + data['negative_feedback'])) * 100 \
+                        if (data['positive_feedback'] + data['negative_feedback']) > 0 else 0
+        
+        query_patterns.append({
+            'query': query,
+            'total_feedback': data['total_feedback'],
+            'satisfaction_rate': satisfaction_rate,
+            'unique_profiles_affected': len(data['unique_profiles']),
+            'learning_effectiveness': calculate_learning_effectiveness_simple(data['score_changes'])
+        })
+
+    # Sort by total feedback
+    query_patterns.sort(key=lambda x: x['total_feedback'], reverse=True)
+
+    return {
+        'top_feedback_queries': query_patterns[:20],
+        'most_satisfied_queries': sorted(query_patterns, key=lambda x: x['satisfaction_rate'], reverse=True)[:10],
+        'least_satisfied_queries': sorted(query_patterns, key=lambda x: x['satisfaction_rate'])[:10],
+        'best_learning_queries': sorted(query_patterns, key=lambda x: x['learning_effectiveness'], reverse=True)[:10]
+    }
+
+def calculate_learning_effectiveness_simple(scores) -> float:
+    """Simple learning effectiveness calculation"""
+    if len(scores) < 2:
+        return 0.0
+
+    # Calculate if scores are generally improving
+    improvements = []
+    for i in range(1, len(scores)):
+        improvements.append(scores[i] - scores[i-1])
+
+    return sum(improvements) / len(improvements) if improvements else 0.0
+def get_embedding_analysis_for_record(record, chroma, model) -> Dict:
+    """Get embedding analysis including before/after feedback changes"""
+    try:
+        if not record.top_result_id:
+            return {
+                'query_embedding': None,
+                'result_embedding_current': None,
+                'result_embedding_original': None,
+                'embedding_similarity_current': None,
+                'embedding_similarity_original': None,
+                'embedding_drift': None,
+                'feedback_driven_similarity_change': None
+            }
+        
+        # Get current embedding from ChromaDB
+        collection = chroma.get_collection()
+        current_results = collection.get(
+            ids=[record.top_result_id],
+            include=['embeddings', 'metadatas']
+        )
+        
+        if not current_results['ids']:
+            return {
+                'query_embedding': None,
+                'result_embedding_current': None,
+                'result_embedding_original': None,
+                'embedding_similarity_current': None,
+                'embedding_similarity_original': None,
+                'embedding_drift': None,
+                'feedback_driven_similarity_change': None
+            }
+        
+        # Generate query embedding
+        query_embedding = model.encode([record.query_text])[0]
+        current_embedding = current_results['embeddings'][0]
+        
+        # Calculate current similarity
+        current_similarity = np.dot(query_embedding, current_embedding) / (
+            np.linalg.norm(query_embedding) * np.linalg.norm(current_embedding)
+        )
+        
+        # For now, we'll use current embedding as original (you can enhance this)
+        # In a real system, you might store embedding history
+        original_embedding = current_embedding  # Simplified
+        original_similarity = current_similarity
+        embedding_drift = 0.0  # Would be calculated if you had original embeddings
+        similarity_change = 0.0
+        
+        return {
+            'query_embedding': query_embedding.tolist(),
+            'result_embedding_current': current_embedding.tolist() if hasattr(current_embedding, 'tolist') else list(current_embedding),
+            'result_embedding_original': original_embedding.tolist() if hasattr(original_embedding, 'tolist') else list(original_embedding),
+            'embedding_similarity_current': float(current_similarity),
+            'embedding_similarity_original': float(original_similarity),
+            'embedding_drift': float(embedding_drift),
+            'feedback_driven_similarity_change': float(similarity_change)
+        }
+        
+    except Exception as e:
+        print(f"Error analyzing embeddings for record {record.id}: {e}")
+        return {
+            'query_embedding': None,
+            'result_embedding_current': None,
+            'result_embedding_original': None,
+            'embedding_similarity_current': None,
+            'embedding_similarity_original': None,
+            'embedding_drift': None,
+            'feedback_driven_similarity_change': None
+        }
+
+def get_feedback_analysis_for_record(record, db: Session) -> Dict:
+    """Get comprehensive feedback analysis for a single record"""
+    try:
+        from models.database.feedback_models import UserFeedback
+        
+        # Get feedback for this record using your actual schema
+        feedback = db.query(UserFeedback).filter(
+            UserFeedback.query_normalized == record.query_normalized,
+            UserFeedback.profile_id == record.profile_id
+        ).order_by(UserFeedback.created_at).all()
+        
+        if not feedback:
+            return {
+                'has_feedback': False,
+                'feedback_type': '',
+                'feedback_timestamp': '',
+                'feedback_user_id': '',
+                'original_score_at_feedback': '',
+                'score_improvement': '',
+                'feedback_delay_seconds': '',
+                'cumulative_positive_feedback': 0,
+                'cumulative_negative_feedback': 0,
+                'feedback_ratio': 0.0,
+                'query_learning_effectiveness': 0.0,
+                'profile_feedback_count': 0
+            }
+        
+        latest_feedback = feedback[-1]
+        
+        # Calculate metrics using your exact field names
+        positive_count = sum(1 for f in feedback if f.feedback_type == 'positive')
+        negative_count = sum(1 for f in feedback if f.feedback_type == 'negative')
+        total_feedback = positive_count + negative_count
+        feedback_ratio = positive_count / total_feedback if total_feedback > 0 else 0.0
+        
+        # Calculate score improvement
+        score_improvement = ''
+        if len(feedback) > 1:
+            first_score = feedback[0].original_score
+            latest_score = latest_feedback.original_score
+            if first_score is not None and latest_score is not None:
+                score_improvement = latest_score - first_score
+        
+        # Calculate feedback delay
+        feedback_delay = ''
+        if record.query_date and latest_feedback.created_at:
+            delay = (latest_feedback.created_at - record.query_date).total_seconds()
+            feedback_delay = delay
+        
+        # Calculate learning effectiveness
+        scores = [f.original_score for f in feedback if f.original_score is not None]
+        learning_effectiveness = calculate_learning_effectiveness_simple(scores)
+        
+        return {
+            'has_feedback': True,
+            'feedback_type': latest_feedback.feedback_type,
+            'feedback_timestamp': latest_feedback.created_at.isoformat() if latest_feedback.created_at else '',
+            'feedback_user_id': latest_feedback.user_id or '',
+            'original_score_at_feedback': latest_feedback.original_score,
+            'score_improvement': score_improvement,
+            'feedback_delay_seconds': feedback_delay,
+            'cumulative_positive_feedback': positive_count,
+            'cumulative_negative_feedback': negative_count,
+            'feedback_ratio': feedback_ratio,
+            'query_learning_effectiveness': learning_effectiveness,
+            'profile_feedback_count': len(feedback)
+        }
+        
+    except Exception as e:
+        print(f"Error analyzing feedback for record {record.id}: {e}")
+        return {
+            'has_feedback': False,
+            'feedback_type': '',
+            'feedback_timestamp': '',
+            'feedback_user_id': '',
+            'original_score_at_feedback': '',
+            'score_improvement': '',
+            'feedback_delay_seconds': '',
+            'cumulative_positive_feedback': 0,
+            'cumulative_negative_feedback': 0,
+            'feedback_ratio': 0.0,
+            'query_learning_effectiveness': 0.0,
+            'profile_feedback_count': 0
+        }
+
+@router.get("/query-performance/export/csv-with-feedback-fixed")
+async def export_query_performance_with_feedback_analysis_fixed(
+    query_text: Optional[str] = Query(None, description="Filter by query text"),
+    profile_id: Optional[str] = Query(None, description="Filter by profile ID"),
+    feedback_type: Optional[str] = Query(None, description="Filter by feedback type"),
+    start_date: Optional[datetime] = Query(None, description="Filter queries after this date"),
+    end_date: Optional[datetime] = Query(None, description="Filter queries before this date"),
+    include_embeddings: bool = Query(True, description="Include embedding vectors"),
+    include_feedback_analysis: bool = Query(True, description="Include feedback effectiveness analysis"),
+    max_records: int = Query(1000, description="Maximum number of records to export"),
+    db: Session = Depends(get_db)
+):
+    """Export query performance data with comprehensive feedback analysis - FIXED"""
+    try:
+        from models.database.feedback_models import UserFeedback
+        
+        # Simple query without problematic joins
+        query = db.query(QueryPerformance)
+        
+        # Apply filters
+        if query_text:
+            query = query.filter(QueryPerformance.query_text.ilike(f"%{query_text}%"))
+        if profile_id:
+            query = query.filter(QueryPerformance.profile_id == profile_id)
+        if start_date:
+            query = query.filter(QueryPerformance.query_date >= start_date)
+        if end_date:
+            query = query.filter(QueryPerformance.query_date <= end_date)
+        
+        query = query.order_by(desc(QueryPerformance.query_date)).limit(max_records)
+        results = query.all()
+        
+        # If filtering by feedback_type, filter results after getting them
+        if feedback_type:
+            filtered_results = []
+            for result in results:
+                feedback_exists = db.query(UserFeedback).filter(
+                    UserFeedback.query_normalized == result.query_normalized,
+                    UserFeedback.profile_id == result.profile_id,
+                    UserFeedback.feedback_type == feedback_type
+                ).first()
+                if feedback_exists:
+                    filtered_results.append(result)
+            results = filtered_results
+        
+        if not results:
+            raise HTTPException(status_code=404, detail="No data found")
+        
+        # Prepare CSV headers
+        base_headers = [
+            'id', 'query_text', 'query_normalized', 'query_date', 'profile_id', 'profile_name',
+            'result_count', 'has_results', 'top_result_score', 'search_duration_ms'
+        ]
+        
+        # Add feedback analysis headers
+        feedback_headers = []
+        if include_feedback_analysis:
+            feedback_headers = [
+                'has_feedback', 'feedback_type', 'feedback_timestamp', 'feedback_user_id',
+                'original_score_at_feedback', 'feedback_score', 'score_improvement', 'feedback_delay_seconds',
+                'cumulative_positive_feedback', 'cumulative_negative_feedback', 'feedback_ratio',
+                'profile_feedback_count'
+            ]
+        
+        # Add embedding headers
+        embedding_headers = []
+        if include_embeddings:
+            embedding_headers = [
+                'query_embedding', 'result_embedding_current', 'embedding_similarity_current'
+            ]
+        
+        all_headers = base_headers + feedback_headers + embedding_headers
+        
+        # Initialize ChromaDB and model for embeddings
+        chroma = None
+        model = None
+        if include_embeddings:
+            try:
+                chroma = get_chroma_instance()
+                model = SentenceTransformer('all-MiniLM-L6-v2')
+            except Exception as e:
+                print(f"ChromaDB not available: {e}")
+        
+        # Prepare CSV data
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(all_headers)
+        
+        for result in results:
+            row_data = []
+            
+            # Basic query performance data
+            row_data.extend([
+                result.id,
+                result.query_text,
+                result.query_normalized or '',
+                result.query_date.isoformat() if result.query_date else '',
+                result.profile_id,
+                result.profile_name or '',
+                result.result_count,
+                result.has_results,
+                result.top_result_score,
+                result.search_duration_ms
+            ])
+            
+            # Feedback analysis data
+            if include_feedback_analysis:
+                # Get feedback for this specific query-profile combination
+                feedback_records = db.query(UserFeedback).filter(
+                    UserFeedback.query_normalized == result.query_normalized,
+                    UserFeedback.profile_id == result.profile_id
+                ).order_by(UserFeedback.created_at).all()
+                
+                if feedback_records:
+                    latest_feedback = feedback_records[-1]
+                    positive_count = sum(1 for f in feedback_records if f.feedback_type == 'positive')
+                    negative_count = sum(1 for f in feedback_records if f.feedback_type == 'negative')
+                    total_sentiment = positive_count + negative_count
+                    feedback_ratio = positive_count / total_sentiment if total_sentiment > 0 else 0.0
+                    
+                    # Calculate score improvement
+                    score_improvement = ''
+                    if len(feedback_records) > 1:
+                        first_score = feedback_records[0].original_score
+                        latest_score = latest_feedback.original_score
+                        if first_score is not None and latest_score is not None:
+                            score_improvement = latest_score - first_score
+                    
+                    # Calculate feedback delay
+                    feedback_delay = ''
+                    if result.query_date and latest_feedback.created_at:
+                        delay = (latest_feedback.created_at - result.query_date).total_seconds()
+                        feedback_delay = delay
+                    
+                    row_data.extend([
+                        True,  # has_feedback
+                        latest_feedback.feedback_type,
+                        latest_feedback.created_at.isoformat() if latest_feedback.created_at else '',
+                        latest_feedback.user_id or '',
+                        latest_feedback.original_score,
+                        latest_feedback.feedback_score,
+                        score_improvement,
+                        feedback_delay,
+                        positive_count,
+                        negative_count,
+                        feedback_ratio,
+                        len(feedback_records)
+                    ])
+                else:
+                    # No feedback
+                    row_data.extend([
+                        False,  # has_feedback
+                        '', '', '', '', '', '', '',  # empty feedback fields
+                        0, 0, 0.0, 0  # feedback counts
+                    ])
+            
+            # Embedding analysis data
+            if include_embeddings and chroma and model:
+                try:
+                    query_embedding = model.encode([result.query_text])[0]
+                    
+                    result_embedding = None
+                    similarity = None
+                    
+                    if result.top_result_id:
+                        collection = chroma.get_collection()
+                        chroma_results = collection.get(
+                            ids=[result.top_result_id],
+                            include=['embeddings']
+                        )
+                        if chroma_results['ids']:
+                            result_embedding = chroma_results['embeddings'][0]
+                            # Calculate similarity
+                            similarity = np.dot(query_embedding, result_embedding) / (
+                                np.linalg.norm(query_embedding) * np.linalg.norm(result_embedding)
+                            )
+                    
+                    row_data.extend([
+                        json.dumps(query_embedding.tolist()),
+                        json.dumps(result_embedding.tolist()) if result_embedding is not None else '',
+                        float(similarity) if similarity is not None else ''
+                    ])
+                except Exception as e:
+                    print(f"Error getting embeddings for {result.id}: {e}")
+                    row_data.extend(['', '', ''])
+            elif include_embeddings:
+                row_data.extend(['', '', ''])
+            
+            writer.writerow(row_data)
+        
+        # Return CSV
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"query_performance_with_feedback_{len(results)}records_{timestamp}.csv"
+        
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+    
+
+@router.get("/feedback/analysis/effectiveness/export")
+async def export_feedback_effectiveness_analysis(
+    days_back: int = Query(30, description="Days to analyze"),
+    profile_id: Optional[str] = Query(None, description="Specific profile to analyze"),
+    analysis_type: str = Query("summary", description="Type of analysis: summary, query_patterns, profile_performance, temporal"),
+    db: Session = Depends(get_db)
+):
+    """Export feedback effectiveness analysis to CSV"""
+    try:
+        from models.database.feedback_models import UserFeedback
+        
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days_back)
+        
+        # Get feedback data
+        query = db.query(UserFeedback).filter(
+            UserFeedback.created_at >= start_date
+        )
+        
+        if profile_id:
+            query = query.filter(UserFeedback.profile_id == profile_id)
+        
+        feedback_data = query.all()
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        if analysis_type == "summary":
+            # Overall effectiveness summary
+            headers = [
+                'metric', 'value', 'description'
+            ]
+            writer.writerow(headers)
+            
+            total_feedback = len(feedback_data)
+            positive_feedback = sum(1 for f in feedback_data if f.feedback_type == 'positive')
+            negative_feedback = sum(1 for f in feedback_data if f.feedback_type == 'negative')
+            neutral_feedback = sum(1 for f in feedback_data if f.feedback_type == 'neutral')
+            
+            satisfaction_rate = (positive_feedback / (positive_feedback + negative_feedback)) * 100 if (positive_feedback + negative_feedback) > 0 else 0
+            
+            original_scores = [f.original_score for f in feedback_data if f.original_score is not None]
+            feedback_scores = [f.feedback_score for f in feedback_data if f.feedback_score is not None]
+            
+            avg_original_score = sum(original_scores) / len(original_scores) if original_scores else 0
+            avg_feedback_score = sum(feedback_scores) / len(feedback_scores) if feedback_scores else 0
+            
+            metrics = [
+                ['total_feedback_count', total_feedback, 'Total number of feedback records'],
+                ['positive_feedback_count', positive_feedback, 'Number of positive feedback'],
+                ['negative_feedback_count', negative_feedback, 'Number of negative feedback'],
+                ['neutral_feedback_count', neutral_feedback, 'Number of neutral feedback'],
+                ['satisfaction_rate_percent', round(satisfaction_rate, 2), 'Percentage of positive feedback'],
+                ['average_original_score', round(avg_original_score, 3), 'Average original search score'],
+                ['average_feedback_score', round(avg_feedback_score, 3), 'Average user-provided feedback score'],
+                ['analysis_period_days', days_back, 'Number of days analyzed'],
+                ['start_date', start_date.isoformat(), 'Analysis start date'],
+                ['end_date', end_date.isoformat(), 'Analysis end date']
+            ]
+            
+            for metric in metrics:
+                writer.writerow(metric)
+        
+        elif analysis_type == "query_patterns":
+            # Query-level analysis
+            headers = [
+                'query_normalized', 'total_feedback', 'positive_feedback', 'negative_feedback', 
+                'neutral_feedback', 'satisfaction_rate', 'unique_profiles_affected', 
+                'average_original_score', 'average_feedback_score'
+            ]
+            writer.writerow(headers)
+            
+            query_analysis = {}
+            for feedback in feedback_data:
+                query = feedback.query_normalized
+                if query not in query_analysis:
+                    query_analysis[query] = {
+                        'total_feedback': 0,
+                        'positive_feedback': 0,
+                        'negative_feedback': 0,
+                        'neutral_feedback': 0,
+                        'unique_profiles': set(),
+                        'original_scores': [],
+                        'feedback_scores': []
+                    }
+                
+                query_analysis[query]['total_feedback'] += 1
+                if feedback.feedback_type == 'positive':
+                    query_analysis[query]['positive_feedback'] += 1
+                elif feedback.feedback_type == 'negative':
+                    query_analysis[query]['negative_feedback'] += 1
+                elif feedback.feedback_type == 'neutral':
+                    query_analysis[query]['neutral_feedback'] += 1
+                
+                query_analysis[query]['unique_profiles'].add(feedback.profile_id)
+                if feedback.original_score:
+                    query_analysis[query]['original_scores'].append(feedback.original_score)
+                if feedback.feedback_score:
+                    query_analysis[query]['feedback_scores'].append(feedback.feedback_score)
+            
+            # Convert to rows
+            for query, data in query_analysis.items():
+                total_sentiment = data['positive_feedback'] + data['negative_feedback']
+                satisfaction_rate = (data['positive_feedback'] / total_sentiment) * 100 if total_sentiment > 0 else 0
+                
+                avg_original_score = sum(data['original_scores']) / len(data['original_scores']) if data['original_scores'] else 0
+                avg_feedback_score = sum(data['feedback_scores']) / len(data['feedback_scores']) if data['feedback_scores'] else 0
+                
+                writer.writerow([
+                    query,
+                    data['total_feedback'],
+                    data['positive_feedback'],
+                    data['negative_feedback'],
+                    data['neutral_feedback'],
+                    round(satisfaction_rate, 2),
+                    len(data['unique_profiles']),
+                    round(avg_original_score, 3),
+                    round(avg_feedback_score, 3)
+                ])
+        
+        elif analysis_type == "profile_performance":
+            # Profile-level analysis
+            headers = [
+                'profile_id', 'total_feedback', 'positive_feedback', 'negative_feedback', 
+                'neutral_feedback', 'satisfaction_rate', 'unique_queries', 
+                'average_original_score', 'average_feedback_score'
+            ]
+            writer.writerow(headers)
+            
+            profile_analysis = {}
+            for feedback in feedback_data:
+                profile_id = feedback.profile_id
+                if profile_id not in profile_analysis:
+                    profile_analysis[profile_id] = {
+                        'total_feedback': 0,
+                        'positive_feedback': 0,
+                        'negative_feedback': 0,
+                        'neutral_feedback': 0,
+                        'unique_queries': set(),
+                        'original_scores': [],
+                        'feedback_scores': []
+                    }
+                
+                profile_analysis[profile_id]['total_feedback'] += 1
+                if feedback.feedback_type == 'positive':
+                    profile_analysis[profile_id]['positive_feedback'] += 1
+                elif feedback.feedback_type == 'negative':
+                    profile_analysis[profile_id]['negative_feedback'] += 1
+                elif feedback.feedback_type == 'neutral':
+                    profile_analysis[profile_id]['neutral_feedback'] += 1
+                
+                profile_analysis[profile_id]['unique_queries'].add(feedback.query_normalized)
+                if feedback.original_score:
+                    profile_analysis[profile_id]['original_scores'].append(feedback.original_score)
+                if feedback.feedback_score:
+                    profile_analysis[profile_id]['feedback_scores'].append(feedback.feedback_score)
+            
+            # Convert to rows
+            for profile_id, data in profile_analysis.items():
+                total_sentiment = data['positive_feedback'] + data['negative_feedback']
+                satisfaction_rate = (data['positive_feedback'] / total_sentiment) * 100 if total_sentiment > 0 else 0
+                
+                avg_original_score = sum(data['original_scores']) / len(data['original_scores']) if data['original_scores'] else 0
+                avg_feedback_score = sum(data['feedback_scores']) / len(data['feedback_scores']) if data['feedback_scores'] else 0
+                
+                writer.writerow([
+                    profile_id,
+                    data['total_feedback'],
+                    data['positive_feedback'],
+                    data['negative_feedback'],
+                    data['neutral_feedback'],
+                    round(satisfaction_rate, 2),
+                    len(data['unique_queries']),
+                    round(avg_original_score, 3),
+                    round(avg_feedback_score, 3)
+                ])
+        
+        elif analysis_type == "temporal":
+            # Daily temporal analysis
+            headers = [
+                'date', 'total_feedback', 'positive_feedback', 'negative_feedback', 
+                'neutral_feedback', 'satisfaction_rate', 'average_original_score', 
+                'average_feedback_score'
+            ]
+            writer.writerow(headers)
+            
+            daily_stats = {}
+            for feedback in feedback_data:
+                day = feedback.created_at.date()
+                if day not in daily_stats:
+                    daily_stats[day] = {
+                        'total_feedback': 0,
+                        'positive_feedback': 0,
+                        'negative_feedback': 0,
+                        'neutral_feedback': 0,
+                        'original_scores': [],
+                        'feedback_scores': []
+                    }
+                
+                daily_stats[day]['total_feedback'] += 1
+                if feedback.feedback_type == 'positive':
+                    daily_stats[day]['positive_feedback'] += 1
+                elif feedback.feedback_type == 'negative':
+                    daily_stats[day]['negative_feedback'] += 1
+                elif feedback.feedback_type == 'neutral':
+                    daily_stats[day]['neutral_feedback'] += 1
+                
+                if feedback.original_score:
+                    daily_stats[day]['original_scores'].append(feedback.original_score)
+                if feedback.feedback_score:
+                    daily_stats[day]['feedback_scores'].append(feedback.feedback_score)
+            
+            # Convert to rows and sort by date
+            daily_rows = []
+            for day, data in daily_stats.items():
+                total_sentiment = data['positive_feedback'] + data['negative_feedback']
+                satisfaction_rate = (data['positive_feedback'] / total_sentiment) * 100 if total_sentiment > 0 else 0
+                
+                avg_original_score = sum(data['original_scores']) / len(data['original_scores']) if data['original_scores'] else 0
+                avg_feedback_score = sum(data['feedback_scores']) / len(data['feedback_scores']) if data['feedback_scores'] else 0
+                
+                daily_rows.append([
+                    day.isoformat(),
+                    data['total_feedback'],
+                    data['positive_feedback'],
+                    data['negative_feedback'],
+                    data['neutral_feedback'],
+                    round(satisfaction_rate, 2),
+                    round(avg_original_score, 3),
+                    round(avg_feedback_score, 3)
+                ])
+            
+            # Sort by date
+            daily_rows.sort(key=lambda x: x[0])
+            for row in daily_rows:
+                writer.writerow(row)
+        
+        # Return CSV
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"feedback_effectiveness_{analysis_type}_{days_back}days_{timestamp}.csv"
+        
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Effectiveness export failed: {str(e)}")

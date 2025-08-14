@@ -1,4 +1,3 @@
-
 from sqlalchemy import Column, String, Integer, DateTime, Boolean, Text, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.postgresql import JSONB
@@ -11,6 +10,7 @@ class QueryPerformance(Base):
     """Track search query performance and analytics"""
     __tablename__ = "query_performance"
     
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     profile_id = Column(String(255), nullable=False)
     query_text = Column(String(500), nullable=False)
