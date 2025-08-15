@@ -47,13 +47,13 @@ app.add_middleware(
 
 # Include routers
 app.include_router(search_router, prefix="/api/v1", tags=["search"])
-app.include_router(datasets_router, prefix="/api/v1", tags=["elt_service"])
+app.include_router(datasets_router, prefix="/api/v1", tags=["etl_service"])
 app.include_router(query_performance_router, prefix="/api/v1", tags=["metrics"])
 app.include_router(feedback_router, prefix="/api/v1", tags=["feedback"])
 app.include_router(formsets_router, prefix="/api/v1", tags=["etl_service"])
 app.include_router(formlookup_router, prefix="/api/v1", tags=["search"])
 app.include_router(v2_mapping_router, prefix="/api/v1", tags=["search"])
-app.include_router(elt_api_v2_mapping_router, prefix="/api/v1", tags=["elt_service"])
+app.include_router(elt_api_v2_mapping_router, prefix="/api/v1", tags=["etl_service"])
 app.include_router(form_trainer, prefix="/api/v1", tags=["model_training"])
 app.include_router(profile_trainer, prefix="/api/v1", tags=["model_training"])
 app.include_router(v2_trainer, prefix="/api/v1", tags=["model_training"])

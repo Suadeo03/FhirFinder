@@ -62,7 +62,7 @@ chmod +x setup_ollama.sh
 
 ### 4. Access the Application
 
-- **Main Application**: http://localhost:8000
+- **Main Application**: http://localhost:8000 ##Docker may direct to 0.0.0.0:8000 
 - **API Documentation**: http://localhost:8000/docs
 - **Health Check**: http://localhost:8000/health
 - **Database Admin**: http://localhost:8080 (PgAdmin)
@@ -387,7 +387,7 @@ See License
 For issues, questions, or contributions:
 - Create an issue in the repository
 - Check the troubleshooting section
-- Review the API documentation at `/docs`
+
 
 ---
 

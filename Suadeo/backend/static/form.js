@@ -15,7 +15,7 @@ function displayFormResult(result, dataset) {
         authored: new Date().toISOString(),         
           "item" : [
             {
-            "linkId" : "/44250-9",
+            "linkId" : `${result.results[0].loinc_question_code}` ,
             "text" : `${result.results[0].question}`,
             "answer" : [
             {

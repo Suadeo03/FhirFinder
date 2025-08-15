@@ -71,14 +71,14 @@ class QueryTracker:
             return False
         
         try:
-            # Calculate total duration
+            
             total_duration = int((time.time() - self.start_time) * 1000)
             
-            # Extract result information
+          
             result_count = len(results) if results else 0
             top_result = results[0] if results else None
             
-            # Update query data with results
+           
             self.query_data.update({
                 'search_duration_ms': total_duration,
                 'result_count': result_count,
@@ -116,7 +116,7 @@ class QueryTracker:
                     self.query_data['combined_score'] = min(1.0, base_score + context_bonus)
                     self.query_data['context_score'] = context_bonus
                 
-                # Store relevant metadata
+                
                 metadata = {
                     'local_id': top_result.get('local_id'),
                     'fhir_version': top_result.get('fhir_version'),
@@ -135,7 +135,7 @@ class QueryTracker:
                     'match_reasons': 'No results found'  # Add this
                 })
             
-            # Save to database
+         
             query_performance = QueryPerformance(**self.query_data)
             db.add(query_performance)
             db.commit()
@@ -149,7 +149,7 @@ class QueryTracker:
                 db.rollback()
             return False
         finally:
-            # Reset tracking state
+       
             self._reset_tracking()
     
     def _reset_tracking(self):
