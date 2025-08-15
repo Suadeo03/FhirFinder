@@ -16,7 +16,7 @@ search_service = SearchService()
 feedback_service = FeedbackTraining()
 form_feedback_service = FeedbackTrainingForm()
 
-# Pydantic models for API
+
 class FeedbackRequest(BaseModel):
     query: str
     profile_id: str
@@ -79,14 +79,14 @@ async def record_feedback(
     db: Session = Depends(get_db)
 ):
     try:
-        # Validate feedback type
+        
         if request.feedback_type not in ['positive', 'negative', 'neutral']:
             raise HTTPException(
                 status_code=400, 
                 detail="Invalid feedback type. Must be 'positive', 'negative', or 'neutral'"
             )
         
-        # Record the feedback
+     
         feedback_service.record_user_feedback(
             query=request.query,
             profile_id=request.profile_id,
@@ -112,14 +112,14 @@ async def record_feedback(
     db: Session = Depends(get_db)
 ):
     try:
-        # Validate feedback type
+     
         if request.feedback_type not in ['positive', 'negative', 'neutral']:
             raise HTTPException(
                 status_code=400, 
                 detail="Invalid feedback type. Must be 'positive', 'negative', or 'neutral'"
             )
         
-        # Record the feedback
+      
         form_feedback_service.record_user_feedback(
             query=request.query,
             form_id=request.form_id,

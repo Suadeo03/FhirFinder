@@ -11,13 +11,13 @@ from sqlalchemy import text
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://fhir_user:admin@localhost:5432/fhir_registry")
 
-# Create engine
+
 engine = create_engine(
     DATABASE_URL,
     echo=True if os.getenv("DEBUG") else False,  
 )
 
-# Create session factory
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -39,7 +39,7 @@ def get_db():
     finally:
         db.close()
 
-# Initialize database on import
+
 def init_database():
 
     try:
@@ -59,7 +59,7 @@ def clear_postgres_data():
     
     try:
         with engine.connect() as connection:
-            # Delete all feedback data
+           
             connection.execute(text("DELETE FROM profiles CASCADE"))
             connection.execute(text("DELETE FROM datasets CASCADE"))
             connection.execute(text("DELETE FROM processing_jobs CASCADE"))
@@ -73,7 +73,7 @@ def clear_postgres_data():
             connection.commit()
             print(f"✅ Deleted records from user_feedback")
             
-            # Reset sequence
+          
             connection.execute(text("ALTER SEQUENCE user_feedback_id_seq RESTART WITH 1"))
             connection.commit()
             print("✅ Reset user_feedback ID sequence")

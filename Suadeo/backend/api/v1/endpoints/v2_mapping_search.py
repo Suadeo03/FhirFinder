@@ -73,7 +73,7 @@ async def record_v2_fhir_feedback(
             raise HTTPException(
                 status_code=400, 
                 detail="Invalid feedback type. Must be 'positive', 'negative', or 'neutral'"
-            )
+                )
         
         feedback_service.record_user_feedback(
         query=request.query,
@@ -85,31 +85,11 @@ async def record_v2_fhir_feedback(
         db=db,
         context_info=request.context_info
         )
-        
-
-        recent_query = db.query(QueryPerformance).filter(
-            QueryPerformance.query_text == request.query,
-            QueryPerformance.top_result_id == request.mapping_id,
-            QueryPerformance.dataset_type == 'v2fhir'
-        ).order_by(QueryPerformance.query_date.desc()).first()
-        
-        if recent_query:
-            search_service.query_tracker.update_user_interaction(
-                query_id=recent_query.id,
-                interaction_type='feedback',
-                feedback=request.feedback_type,
-                db=db
-            )
             
-            return {
-                "success": True,
-                "message": f"Feedback '{request.feedback_type}' recorded for query '{request.query}'"
-            }
-        else:
-            return {
-                "success": False,
-                "message": "No matching query found for feedback"
-            }
+        return {
+            "success": True,
+            "message": f"Feedback '{request.feedback_type}' recorded for query '{request.query}'"
+        }
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to record feedback: {str(e)}")

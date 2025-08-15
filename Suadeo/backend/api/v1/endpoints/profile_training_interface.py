@@ -24,7 +24,7 @@ class ProfileEmbeddingUpdateRequest(BaseModel):
 
     @validator('embedding')
     def validate_embedding_dimensions(cls, v):
-        if v is not None and len(v) != 384:  # all-MiniLM-L6-v2 produces 384-dim embeddings
+        if v is not None and len(v) != 384:  # all-MiniLM-L6-v2 
             raise ValueError('Embedding must be 384 dimensions')
         return v
 
@@ -61,12 +61,12 @@ async def update_profile_embedding(
 ):
     """Update embedding for a specific FHIR profile"""
     try:
-        # Get the profile
+    
         profile = db.query(Profile).filter(Profile.id == request.profile_id).first()
         if not profile:
             raise HTTPException(status_code=404, detail=f"Profile {request.profile_id} not found")
 
-        # Initialize services
+    
         etl_service = ETLService()
         chroma = get_chroma_instance()
         
@@ -76,26 +76,26 @@ async def update_profile_embedding(
             message="Starting update..."
         )
 
-        # Determine the embedding to use
+    
         embedding = None
         search_text = None
 
         if request.embedding:
-            # Use provided embedding
+          
             embedding = request.embedding
             search_text = request.search_text or f"{profile.name} {profile.description} {' '.join(profile.keywords or [])}"
             
         elif request.search_text:
-            # Generate embedding from provided search text
+            
             search_text = request.search_text
             embedding = etl_service.model.encode([search_text])[0].tolist()
             
         elif request.regenerate_from_profile:
-            # Regenerate from profile data
+          
             search_text = f"{profile.name} {profile.description} {' '.join(profile.keywords or [])} {profile.fhir_searchable_text or ''}"
             embedding = etl_service.model.encode([search_text])[0].tolist()
             
-            # Update the profile's search_text in database
+           
             profile.search_text = search_text
             db.commit()
             
@@ -105,10 +105,10 @@ async def update_profile_embedding(
                 detail="Must provide either embedding, search_text, or set regenerate_from_profile=true"
             )
 
-        # Update ChromaDB if available
+     
         if chroma.is_available() and embedding:
             try:
-                # Prepare metadata
+               
                 metadata = {
                     'name': profile.name,
                     'description': (profile.description or '')[:1000],
@@ -148,7 +148,7 @@ async def update_profile_embedding(
             try:
                 collection = chroma.get_collection()
                 
-                # Get current data
+             
                 results = collection.get(ids=[request.profile_id], include=['metadatas'])
                 if results['ids']:
                     current_metadata = results['metadatas'][0]
@@ -189,7 +189,7 @@ async def bulk_update_profile_embeddings(
     
     for update_req in request.updates:
         try:
-            # Filter by dataset if specified
+     
             if request.dataset_id:
                 profile = db.query(Profile).filter(
                     Profile.id == update_req.profile_id,
@@ -242,7 +242,7 @@ async def retrain_profile_dataset_embeddings(
             etl_service = ETLService()
             chroma = get_chroma_instance()
             
-            # Get profiles to retrain
+        
             query = db.query(Profile)
             if dataset_id:
                 query = query.filter(Profile.dataset_id == dataset_id)
@@ -255,17 +255,17 @@ async def retrain_profile_dataset_embeddings(
             for i in range(0, len(profiles), batch_size):
                 batch = profiles[i:i + batch_size]
                 
-                # Generate embeddings for batch
+          
                 search_texts = []
                 embeddings = []
                 profile_data = []
                 
                 for profile in batch:
-                    # Create comprehensive search text
+             
                     search_text = f"{profile.name} {profile.description} {' '.join(profile.keywords or [])} {profile.fhir_searchable_text or ''}"
                     embedding = etl_service.model.encode([search_text])[0].tolist()
                     
-                    # Update profile search text in database
+               
                     profile.search_text = search_text
                     
                     search_texts.append(search_text)
@@ -282,10 +282,10 @@ async def retrain_profile_dataset_embeddings(
                         'fhir_searchable_text': profile.fhir_searchable_text
                     })
                 
-                # Commit database updates
+            
                 db.commit()
                 
-                # Batch update ChromaDB
+           
                 if chroma.is_available():
                     etl_service._batch_add_to_chroma(profile_data, search_texts, embeddings)
                 
@@ -297,7 +297,7 @@ async def retrain_profile_dataset_embeddings(
             print(f"Profile retraining failed: {e}")
             db.rollback()
     
-    # Start background task
+
     background_tasks.add_task(
         retrain_task, 
         request.dataset_id, 
@@ -314,12 +314,12 @@ async def retrain_profile_dataset_embeddings(
 async def get_profile_embedding_status(profile_id: str, db: Session = Depends(get_db)):
     """Get embedding status for a specific profile"""
     try:
-        # Check if profile exists in database
+
         profile = db.query(Profile).filter(Profile.id == profile_id).first()
         if not profile:
             raise HTTPException(status_code=404, detail="Profile not found")
         
-        # Check if embedding exists in ChromaDB
+
         chroma = get_chroma_instance()
         chroma_status = False
         metadata = None
@@ -361,12 +361,12 @@ async def get_profile_embedding_status(profile_id: str, db: Session = Depends(ge
 async def delete_profile_embedding(profile_id: str, db: Session = Depends(get_db)):
     """Delete embedding from ChromaDB (keeps profile in database)"""
     try:
-        # Check if profile exists
+    
         profile = db.query(Profile).filter(Profile.id == profile_id).first()
         if not profile:
             raise HTTPException(status_code=404, detail="Profile not found")
         
-        # Delete from ChromaDB
+
         chroma = get_chroma_instance()
         if chroma.is_available():
             collection = chroma.get_collection()
@@ -389,19 +389,19 @@ async def delete_profile_embedding(profile_id: str, db: Session = Depends(get_db
 async def get_dataset_embedding_stats(dataset_id: str, db: Session = Depends(get_db)):
     """Get embedding statistics for a specific dataset"""
     try:
-        # Check if dataset exists
+     
         dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
         if not dataset:
             raise HTTPException(status_code=404, detail="Dataset not found")
         
-        # Get profile counts
+       
         total_profiles = db.query(Profile).filter(Profile.dataset_id == dataset_id).count()
         active_profiles = db.query(Profile).filter(
             Profile.dataset_id == dataset_id,
             Profile.is_active == True
         ).count()
         
-        # Check ChromaDB status
+  
         chroma_count = 0
         chroma_active_count = 0
         
@@ -409,14 +409,13 @@ async def get_dataset_embedding_stats(dataset_id: str, db: Session = Depends(get
         if chroma.is_available():
             try:
                 collection = chroma.get_collection()
-                # Get sample of profile IDs to check ChromaDB
+              
                 profile_ids = [p.id for p in db.query(Profile.id).filter(Profile.dataset_id == dataset_id).limit(100).all()]
                 
                 if profile_ids:
                     results = collection.get(ids=profile_ids, include=['metadatas'])
                     chroma_count = len(results.get('ids', []))
-                    
-                    # Count active embeddings
+                   
                     for metadata in results.get('metadatas', []):
                         if metadata and metadata.get('is_active', False):
                             chroma_active_count += 1

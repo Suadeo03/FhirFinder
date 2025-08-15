@@ -13,8 +13,20 @@ function displayFormResult(result, dataset) {
             div: "html omitted for brevity"         
         },         
         authored: new Date().toISOString(),         
-        item: []     
-    };        
+          "item" : [
+            {
+            "linkId" : "/44250-9",
+            "text" : `${result.results[0].question}`,
+            "answer" : [
+            {
+          "valueCoding" : {
+            "system" : "http://loinc.org",
+            "code" : `${result.results[0].loinc_answer}`,
+            "display" : `${result.results[0].answer_concept}`
+          }
+        }
+      ]    
+      }]};        
     
     return `<div class="success">     
         <h2>Best domain match from ${dataset} dataset: ${result.results[0].domain}</h2>     

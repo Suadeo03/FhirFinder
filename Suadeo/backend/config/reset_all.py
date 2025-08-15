@@ -5,15 +5,15 @@ import os
 import sys
 from typing import Optional
 
-# Add the backend directory to Python path so modules can be found
-backend_dir = os.path.dirname(os.path.abspath(__file__))  # Gets the config directory
-backend_dir = os.path.dirname(backend_dir)  # Gets the backend directory
+
+backend_dir = os.path.dirname(os.path.abspath(__file__))  
+backend_dir = os.path.dirname(backend_dir)  #
 sys.path.insert(0, backend_dir)
 
 print(f"Added to Python path: {backend_dir}")
 
 try:
-    # Now try importing with the backend directory in the path
+
     from config.database import clear_postgres_data
     from config.chroma import ChromaConfig  
     from config.redis_cache import RedisQueryCache
@@ -24,7 +24,7 @@ except ImportError as e:
     print(f"Python path includes: {sys.path}")
     print("\nTrying alternative import method...")
     
-    # Alternative: try importing without config prefix
+   
     try:
         sys.path.insert(0, os.path.join(backend_dir, 'config'))
         from database import clear_postgres_data
@@ -183,14 +183,14 @@ class ResetAll:
         print("\n🚀 Starting complete data reset...")
         print("-" * 40)
         
-        # Track success of each operation
+
         results = {
             'redis': ResetAll.reset_redis(),
             'chroma': ResetAll.reset_chroma(),
             'postgres': ResetAll.reset_postgres()
         }
         
-        # Summary
+        
         print("\n" + "="*40)
         print("📊 RESET SUMMARY")
         print("="*40)
@@ -227,10 +227,9 @@ def main():
         print("  --help, -h Show this help message")
         return
     
-    # Run the reset
+
     success = ResetAll.reset_all_data(force=force, skip_confirmation=skip_confirmation)
-    
-    # Exit with appropriate code
+
     sys.exit(0 if success else 1)
 
 

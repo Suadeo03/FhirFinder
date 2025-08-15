@@ -76,22 +76,22 @@ async def update_v2_mapping_embedding(
             message="Starting update..."
         )
 
-        # Determine the embedding to use
+
         embedding = None
         search_text = None
 
         if request.embedding:
-            # Use provided embedding
+           
             embedding = request.embedding
             search_text = request.search_text or f"{mapping.resource} {mapping.fhir_detail} {mapping.hl7v2_field}"
             
         elif request.search_text:
-            # Generate embedding from provided search text
+        
             search_text = request.search_text
             embedding = etl_service.model.encode([search_text])[0].tolist()
             
         elif request.regenerate_from_mapping:
-            # Regenerate from mapping data
+
             search_text_parts = [
                 mapping.resource or '',
                 mapping.fhir_detail or '',
@@ -108,10 +108,10 @@ async def update_v2_mapping_embedding(
                 detail="Must provide either embedding, search_text, or set regenerate_from_mapping=true"
             )
 
-        # Update ChromaDB if available
+      
         if chroma.is_available() and embedding:
             try:
-                # Prepare metadata
+             
                 metadata = {
                     'local_id': mapping.local_id or '',
                     'resource': mapping.resource or '',
@@ -126,11 +126,10 @@ async def update_v2_mapping_embedding(
                     'last_updated': datetime.utcnow().isoformat()
                 }
                 
-                # Add any additional metadata updates
                 if request.metadata_updates:
                     metadata.update(request.metadata_updates)
 
-                # Update in ChromaDB
+                #
                 collection = chroma.get_collection()
                 collection.upsert(
                     ids=[request.mapping_id],
@@ -147,12 +146,11 @@ async def update_v2_mapping_embedding(
                 response.message = f"ChromaDB update failed: {str(e)}"
                 return response
 
-        # Update metadata only if requested
+
         elif request.metadata_updates and chroma.is_available():
             try:
                 collection = chroma.get_collection()
-                
-                # Get current data
+
                 results = collection.get(ids=[request.mapping_id], include=['metadatas'])
                 if results['ids']:
                     current_metadata = results['metadatas'][0]
@@ -193,7 +191,7 @@ async def bulk_update_v2_mapping_embeddings(
     
     for update_req in request.updates:
         try:
-            # Filter by dataset if specified
+          
             if request.dataset_id:
                 mapping = db.query(V2FHIRdata).filter(
                     V2FHIRdata.id == update_req.mapping_id,
@@ -208,7 +206,7 @@ async def bulk_update_v2_mapping_embeddings(
                     failed += 1
                     continue
             
-            # Process individual update
+           
             result = await update_v2_mapping_embedding(update_req, db)
             results.append(result)
             
@@ -259,13 +257,13 @@ async def retrain_v2_mapping_dataset_embeddings(
             for i in range(0, len(mappings), batch_size):
                 batch = mappings[i:i + batch_size]
                 
-                # Generate embeddings for batch
+
                 search_texts = []
                 embeddings = []
                 mapping_data = []
                 
                 for mapping in batch:
-                    # Create comprehensive search text
+                   
                     search_text_parts = [
                         mapping.resource or '',
                         mapping.fhir_detail or '',
@@ -320,12 +318,12 @@ async def retrain_v2_mapping_dataset_embeddings(
 async def get_v2_mapping_embedding_status(mapping_id: str, db: Session = Depends(get_db)):
     """Get embedding status for a specific V2 FHIR mapping"""
     try:
-        # Check if mapping exists in database
+
         mapping = db.query(V2FHIRdata).filter(V2FHIRdata.id == mapping_id).first()
         if not mapping:
             raise HTTPException(status_code=404, detail="V2 FHIR mapping not found")
         
-        # Check if embedding exists in ChromaDB
+ 
         chroma = get_chroma_instance()
         chroma_status = False
         metadata = None
@@ -367,12 +365,12 @@ async def get_v2_mapping_embedding_status(mapping_id: str, db: Session = Depends
 async def delete_v2_mapping_embedding(mapping_id: str, db: Session = Depends(get_db)):
     """Delete embedding from ChromaDB (keeps mapping in database)"""
     try:
-        # Check if mapping exists
+
         mapping = db.query(V2FHIRdata).filter(V2FHIRdata.id == mapping_id).first()
         if not mapping:
             raise HTTPException(status_code=404, detail="V2 FHIR mapping not found")
         
-        # Delete from ChromaDB
+
         chroma = get_chroma_instance()
         if chroma.is_available():
             collection = chroma.get_collection()
@@ -407,7 +405,7 @@ async def get_v2_dataset_embedding_stats(dataset_id: str, db: Session = Depends(
             V2FHIRdata.is_active == True
         ).count()
         
-        # Check ChromaDB status
+
         chroma_count = 0
         chroma_active_count = 0
         
@@ -415,14 +413,14 @@ async def get_v2_dataset_embedding_stats(dataset_id: str, db: Session = Depends(
         if chroma.is_available():
             try:
                 collection = chroma.get_collection()
-                # Get sample of mapping IDs to check ChromaDB
+
                 mapping_ids = [m.id for m in db.query(V2FHIRdata.id).filter(V2FHIRdata.V2FHIRdataset_id == dataset_id).limit(100).all()]
                 
                 if mapping_ids:
                     results = collection.get(ids=mapping_ids, include=['metadatas'])
                     chroma_count = len(results.get('ids', []))
                     
-                    # Count active embeddings
+           
                     for metadata in results.get('metadatas', []):
                         if metadata and metadata.get('is_active', False):
                             chroma_active_count += 1
@@ -454,12 +452,12 @@ async def compare_v2_mapping_with_query(
 ):
     """Compare a V2 FHIR mapping's embedding with a query for similarity testing"""
     try:
-        # Check if mapping exists
+
         mapping = db.query(V2FHIRdata).filter(V2FHIRdata.id == mapping_id).first()
         if not mapping:
             raise HTTPException(status_code=404, detail="V2 FHIR mapping not found")
         
-        # Get mapping embedding from ChromaDB
+
         chroma = get_chroma_instance()
         if not chroma.is_available():
             raise HTTPException(status_code=503, detail="ChromaDB not available")
@@ -469,19 +467,18 @@ async def compare_v2_mapping_with_query(
         
         if not results['ids']:
             raise HTTPException(status_code=404, detail="Mapping embedding not found in ChromaDB")
-        
-        # Generate query embedding
+  
         etl_service = V2FHIRETLService()
         query_embedding = etl_service.model.encode([query])[0].tolist()
         mapping_embedding = results['embeddings'][0]
         
-        # Calculate similarity (cosine similarity)
+     
         import numpy as np
         
         query_vec = np.array(query_embedding)
         mapping_vec = np.array(mapping_embedding)
         
-        # Cosine similarity
+    
         similarity = np.dot(query_vec, mapping_vec) / (np.linalg.norm(query_vec) * np.linalg.norm(mapping_vec))
         
         return {
@@ -514,11 +511,11 @@ async def batch_compare_v2_mappings_with_query(
         if not chroma.is_available():
             raise HTTPException(status_code=503, detail="ChromaDB not available")
         
-        # Generate query embedding
+
         etl_service = V2FHIRETLService()
         query_embedding = etl_service.model.encode([query])[0].tolist()
         
-        # Get mapping embeddings from ChromaDB
+
         collection = chroma.get_collection()
         results = collection.get(ids=mapping_ids, include=['embeddings', 'documents', 'metadatas'])
         
@@ -530,8 +527,7 @@ async def batch_compare_v2_mappings_with_query(
             try:
                 mapping_embedding = results['embeddings'][i]
                 mapping_vec = np.array(mapping_embedding)
-                
-                # Calculate cosine similarity
+         
                 similarity = np.dot(query_vec, mapping_vec) / (np.linalg.norm(query_vec) * np.linalg.norm(mapping_vec))
                 
                 comparisons.append({
@@ -549,7 +545,7 @@ async def batch_compare_v2_mappings_with_query(
                     "error": str(e)
                 })
         
-        # Sort by similarity score (highest first)
+     
         comparisons.sort(key=lambda x: x.get('similarity_score', 0), reverse=True)
         
         return {

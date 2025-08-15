@@ -102,7 +102,7 @@ class FeedbackTrainingForm:
                 
             current_embedding = np.array(current_results['embeddings'][0])
             
-            # Validate the embedding array
+       
             if current_embedding.size == 0:
                 print(f"Empty embedding array for profile {form_id}")
                 return

@@ -1,3 +1,12 @@
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes blink {
+        0%, 50% { border-color: transparent; }
+        51%, 100% { border-color: #333; }
+    }
+`;
+document.head.appendChild(style);
+
 
 // Tab switching functionality
 let currentTab = 'resources';
@@ -168,12 +177,14 @@ function displayCodeResult(result, dataset) {
     const firstResult = result.results[0];
     
 
+    const summaryId = `summary-${Date.now()}`;
+    
     let summarySection = '';
     if (result.summary) {
         summarySection = `
             <div class="search-summary">
                 <div class="summary-icon">💡</div>
-                <div class="summary-text">${escapeHtml(result.summary)}</div>
+                <div class="summary-text" id="${summaryId}"></div>
             </div>
         `;
     }
@@ -227,7 +238,7 @@ function displayCodeResult(result, dataset) {
         ? firstResult.resource_url 
         : '#';
 
-    return `<div class="success">
+    const html = `<div class="success">
         ${summarySection}
         
         <h2>Best match: ${escapeHtml(resourceType)}</h2>
@@ -264,7 +275,18 @@ function displayCodeResult(result, dataset) {
             <small>Similarity Score: ${(firstResult.similarity_score * 100).toFixed(1)}%</small>
         </div>
     </div>`;
+    
+
+    setTimeout(() => {
+        if (result.summary) {
+            typeWriterEffect(result.summary, summaryId, 50); //adjust speed
+        }
+    }, 100);
+    
+    return html;
 }
+
+
 
 
 function escapeHtml(text) {
@@ -371,7 +393,7 @@ class FeedbackService {
 
                 }  
             else {
-                // Handle other tabs - fallback to resources endpoint
+ 
                 response = await fetch(`${this.baseUrl}/api/v1/feedback/record`, {
                     method: 'POST',
                     headers: {
@@ -441,12 +463,12 @@ async function sendFeedbackResponse(feedbackType) {
         originalScore = currentResult.results[0].similarity_score || 0.0;
         context_info = '';
     } else {
-        // Handle other tabs (mapping, search, etc.)
+    
         id = currentResult.results?.[0]?.id || currentResult.data?.[0]?.id;
         originalScore = currentResult.results?.[0]?.similarity_score || currentResult.data?.[0]?.similarity_score || 0.0;
         context_info = '';
     }
-    // Customize messages based on feedback type
+ 
     if (!id) {
         showResult('<div class="error">Unable to identify result for feedback.</div>');
         return;
@@ -499,7 +521,7 @@ document.addEventListener('keypress', function(e) {
 
 async function checkNarrativeStatus() {
     try {
-        // First check if Ollama is running at all
+  
         const response = await fetch('http://localhost:11434/api/version');
         
         if (response.ok) {
@@ -509,13 +531,13 @@ async function checkNarrativeStatus() {
         }
         
     } catch (error) {
-        // Network error - Ollama probably not running
+      
         console.warn('Ollama not available:', error.message);
         return { available: false, error: 'Ollama service not running' };
     }
 }
 function showNarrativeStatusNotice(status) {
-    // Optional: Show a small notice that AI narrative is unavailable
+ 
     const notice = document.createElement('div');
     notice.className = 'narrative-notice';
     notice.innerHTML = `
@@ -530,12 +552,12 @@ function showNarrativeStatusNotice(status) {
         font-size: 12px;
         color: #0369a1;
     `;
-     // Insert at the top of the search results area
+    
     const resultDiv = document.getElementById('result');
     if (resultDiv && resultDiv.style.display !== 'none') {
         resultDiv.insertBefore(notice, resultDiv.firstChild);
         
-        // Remove notice after 10 seconds
+        
         setTimeout(() => {
             if (notice.parentNode) {
                 notice.parentNode.removeChild(notice);
@@ -544,5 +566,28 @@ function showNarrativeStatusNotice(status) {
     }
 }
 
-// Check status when page loads
+function typeWriterEffect(text, elementId, speed = 30) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    element.innerHTML = '';
+    element.style.borderRight = '2px solid #333';
+    element.style.animation = 'blink 1s infinite';
+    
+    let i = 0;
+    function type() {
+        if (i < text.length) {
+            element.innerHTML += text.charAt(i);
+            i++;
+            setTimeout(type, speed);
+        } else {
+            // Remove cursor after typing is complete
+            element.style.borderRight = 'none';
+            element.style.animation = 'none';
+        }
+    }
+    type();
+}
+
+
 document.addEventListener('DOMContentLoaded', checkNarrativeStatus);

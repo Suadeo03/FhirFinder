@@ -1,4 +1,4 @@
-# backend/services/narrative/conversational_service.py
+
 import requests
 import json
 from typing import List, Dict, Any, Optional
@@ -60,13 +60,15 @@ class FHIRConversationalService:
         
         # Extract key info from results
         first_result = results[0]
+        resource = first_result.get('resource_type', '')
         description = first_result.get('description', '')[:100]
         keywords = first_result.get('keywords','')
         
 
-        prompt = f"""Summarize this search result for a user by acknolwedging their query, providing a brief description of the resource, a particular use context or key words:
+        prompt = f"""Summarize this search result for someone in the second person perspective acknolwedging their query, the found resource, providing a brief description of the resource, a particular use context or key words:
 
 Query: "{query}"
+Resource: "{resource}"
 Found: {len(results)} results
 Description: {description}
 Keywords : {keywords}

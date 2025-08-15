@@ -8,7 +8,7 @@ from datetime import datetime
 class RedisQueryCache:
     def __init__(self):
         try:
-            # Use environment variables for Docker compatibility
+          
             redis_host = os.getenv('REDIS_HOST', 'localhost')
             redis_port = int(os.getenv('REDIS_PORT', 6379))
             redis_db = int(os.getenv('REDIS_DB', 0))
@@ -17,7 +17,7 @@ class RedisQueryCache:
                 host=redis_host,
                 port=redis_port,
                 db=redis_db,
-                decode_responses=True  # This ensures strings are returned, not bytes
+                decode_responses=True  # This ensures strings are returned
             )
             # Test connection
             self.redis_client.ping()
@@ -45,7 +45,7 @@ class RedisQueryCache:
             return False
         
         try:
-            # Test connection with ping
+            
             self.redis_client.ping()
             return True
         except Exception:
@@ -67,7 +67,7 @@ class RedisQueryCache:
         try:
             cached_data = self.redis_client.get(f"query:{query_key}")
             if cached_data:
-                # Deserialize JSON string back to Python object
+          
                 return json.loads(cached_data)
             return None
         except Exception as e:
@@ -80,7 +80,7 @@ class RedisQueryCache:
             return False
         
         try:
-            # Serialize Python object to JSON string
+        
             json_data = json.dumps(feedback_data)
             result = self.redis_client.setex(
                 f"query:{query_key}", 
@@ -98,13 +98,13 @@ class RedisQueryCache:
             return False
         
         try:
-            # Convert value to JSON string if it's not already a simple type
+          
             if isinstance(feedback_value, (dict, list)):
                 value_to_store = json.dumps(feedback_value)
             elif isinstance(feedback_value, (str, int, float, bool)):
                 value_to_store = str(feedback_value)
             else:
-                # For other types (like datetime), convert to string
+        
                 value_to_store = str(feedback_value)
             
             result = self.redis_client.setex(
@@ -162,7 +162,7 @@ class RedisQueryCache:
             return False
         
         try:
-            # Get all query keys
+           
             query_keys = self.redis_client.keys("query:*")
             if query_keys:
                 result = self.redis_client.delete(*query_keys)

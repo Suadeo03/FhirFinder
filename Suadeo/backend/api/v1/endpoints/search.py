@@ -1,4 +1,4 @@
-# backend/api/v1/endpoints/search.py (SIMPLIFIED)
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -19,7 +19,7 @@ class SearchResponse(BaseModel):
     query: str
     results: List[dict]
     total_results: int
-    summary: Optional[str] = None  # Simple summary
+    summary: Optional[str] = None  
     search_stats: Optional[dict] = None
 
 @router.post("/search", response_model=SearchResponse)

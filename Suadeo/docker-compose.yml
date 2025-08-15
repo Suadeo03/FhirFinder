@@ -1,6 +1,6 @@
 
 services:
-  # Database Services
+
   postgres:
     image: postgres:15
     container_name: fhir_postgres
@@ -39,7 +39,7 @@ services:
     networks:
       - fhir_network
 
-  # Cache Services
+
   redis:
     image: redis:7-alpine
     container_name: fhir_redis
@@ -52,7 +52,6 @@ services:
     networks:
       - fhir_network
 
-  # Vector Database
   chroma:
     image: chromadb/chroma:latest
     container_name: fhir_chroma
@@ -76,7 +75,7 @@ services:
     networks:
       - fhir_network
 
-  # Ollama LLM Service
+  
   ollama:
     image: ollama/ollama:latest
     container_name: fhir_ollama
@@ -89,7 +88,7 @@ services:
       - fhir_network
 
 
-  # FastAPI 
+
   fhir_app:
     build:
       context: ./backend
@@ -98,7 +97,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # Database Configuration
+    
       - DATABASE_URL=postgresql://fhir_user:admin@postgres:5432/fhir_registry
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
@@ -106,21 +105,21 @@ services:
       - POSTGRES_USER=fhir_user
       - POSTGRES_PASSWORD=admin
       
-      # Redis Configuration
+   
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
       
-      # Chroma Configuration
+    
       - CHROMA_HOST=chroma
       - CHROMA_PORT=8000
       - CHROMA_COLLECTION_NAME=fhir_profiles
       
-      # Ollama Configuration
+      
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=tinyllama
       
-      # Application Settings
+    
       - ENVIRONMENT=production
       - DEBUG=false
       - API_V1_STR=/api/v1

@@ -211,7 +211,7 @@ class SearchService:
                     Profile.search_text.ilike(f"%{query}%")
                 )
                 
-                # Apply filters
+       
                 if filters:
                     if filters.get('dataset_id'):
                         text_query = text_query.filter(Profile.dataset_id == filters['dataset_id'])
@@ -249,7 +249,7 @@ class SearchService:
             except Exception as e:
                 print(f"Text search failed in hybrid mode: {e}")
         
-        # Calculate hybrid scores and sort
+
         for result in results_map.values():
             result['similarity_score'] = (
                 semantic_weight * result['semantic_score'] + 

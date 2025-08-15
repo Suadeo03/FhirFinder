@@ -45,13 +45,13 @@ class ChromaConfig:
         collection_name = os.getenv('CHROMA_COLLECTION_NAME', 'fhir_profiles')
 
         # In Docker environment, prioritize HTTP connection to persistent server
-        # Remove in-memory fallback to prevent data loss
+
         if self._try_http_connection_with_retry(collection_name):
             return
         if self._try_persistent_client(collection_name):
             return
 
-        # REMOVED: in-memory fallback to prevent data loss
+
         print("❌ All persistent Chroma initialization strategies failed")
         print("💡 Ensure ChromaDB server is running and accessible")
         self.chroma_client = None
@@ -60,14 +60,14 @@ class ChromaConfig:
 
     def _try_http_connection_with_retry(self, collection_name: str, max_retries: int = 5) -> bool:
         """Try HTTP connection with retries for Docker container startup timing"""
-        host = os.getenv('CHROMA_HOST', 'chroma')  # Default to service name
-        port = int(os.getenv('CHROMA_PORT', '8000'))  # Use internal port 8000
+        host = os.getenv('CHROMA_HOST', 'chroma')  
+        port = int(os.getenv('CHROMA_PORT', '8000'))  # Use 8000
         
         for attempt in range(max_retries):
             try:
                 print(f"🔄 Attempt {attempt + 1}/{max_retries}: Connecting to ChromaDB at {host}:{port}")
                 
-                # Create client with proper settings for server mode
+       
                 self.chroma_client = chromadb.HttpClient(
                     host=host,
                     port=port,
@@ -77,12 +77,12 @@ class ChromaConfig:
                     )
                 )
                 
-                # Test connection with timeout
+            
                 socket.setdefaulttimeout(10)
                 heartbeat = self.chroma_client.heartbeat()
                 print(f"✅ ChromaDB server heartbeat: {heartbeat}")
                 
-                # Get or create collection
+               
                 self.collection = self._get_or_create_collection(collection_name)
                 if self.collection:
                     self.connection_mode = f"http_server_{host}:{port}"
@@ -93,7 +93,7 @@ class ChromaConfig:
             except Exception as e:
                 print(f"❌ HTTP connection attempt {attempt + 1} failed: {e}")
                 if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt  # Exponential backoff
+                    wait_time = 2 ** attempt  
                     print(f"⏳ Waiting {wait_time}s before retry...")
                     time.sleep(wait_time)
                 
@@ -102,11 +102,11 @@ class ChromaConfig:
     def _try_persistent_client(self, collection_name: str) -> bool:
         """Try persistent local Chroma client as fallback"""
         try:
-            # In Docker, use a volume-mounted directory
+   
             persist_directory = os.getenv('CHROMA_PERSIST_DIR', '/app/chroma_db')
             print(f"🔄 Attempting persistent Chroma client at {persist_directory}")
             
-            # Ensure directory exists and is writable
+
             os.makedirs(persist_directory, exist_ok=True)
             
             self.chroma_client = chromadb.PersistentClient(
@@ -132,14 +132,14 @@ class ChromaConfig:
     def _get_or_create_collection(self, collection_name: str):
         """Get existing collection or create new one"""
         try:
-            # Try to get existing collection first
+     
             collection = self.chroma_client.get_collection(name=collection_name)
             print(f"📁 Found existing collection: {collection_name} with {collection.count()} items")
             return collection
             
         except Exception:
             try:
-                # Create new collection with optimized settings
+          
                 collection = self.chroma_client.create_collection(
                     name=collection_name,
                     metadata={
@@ -157,7 +157,7 @@ class ChromaConfig:
     def get_collection(self):
         """Get the singleton collection instance"""
         if not self._initialized or self.collection is None:
-            # Try to reinitialize if connection was lost
+  
             print("🔄 Collection not available, attempting to reinitialize...")
             self.init_chroma()
             if self.collection is None:
@@ -186,12 +186,11 @@ class ChromaConfig:
             if not self.collection:
                 print("❌ No collection available for testing")
                 return False
-                
-            # Test basic operations
+     
             count = self.collection.count()
             print(f"✅ Connection test successful - collection has {count} items")
             
-            # Test if we can query (even with empty results)
+        
             if count > 0:
                 sample_query = self.collection.peek(limit=1)
                 print(f"✅ Sample data accessible: {len(sample_query.get('ids', []))} items")

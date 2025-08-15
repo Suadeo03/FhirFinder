@@ -34,7 +34,7 @@ class FormResult(BaseModel):
 
 class SearchResponse(BaseModel):
     query: str
-    results: List[Dict[str, Any]]  # Using Dict to handle dynamic form data
+    results: List[Dict[str, Any]]  
     total_results: int
     search_type: str
     search_stats: Optional[Dict[str, Any]] = None
@@ -90,7 +90,6 @@ async def simple_form_search(
     try:
         search_service = FormLookupService()
         
-        # Build filters from query parameters
         filters = {}
         if domain:
             filters['domain'] = domain
@@ -99,7 +98,7 @@ async def simple_form_search(
         if formset_id:
             filters['formset_id'] = formset_id
         
-        # Perform search based on type
+   
         if search_type == "semantic":
             results = search_service.semantic_search(
                 query=query, 
@@ -140,7 +139,7 @@ async def filter_forms(request: FilterSearchRequest, db: Session = Depends(get_d
     try:
         search_service = FormLookupService()
         
-        # Build filters dictionary
+    
         filters = {}
         if request.formset_id:
             filters['formset_id'] = request.formset_id

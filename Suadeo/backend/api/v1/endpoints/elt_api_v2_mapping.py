@@ -91,7 +91,7 @@ async def upload_v2_fhir_dataset(
 
     """Upload a new V2 FHIR mapping dataset file"""
     try:
-        # Validate file type
+      
         allowed_extensions = {'.csv', '.json', '.xlsx', '.xls'}
         file_extension = os.path.splitext(file.filename)[1].lower()
         
@@ -101,7 +101,7 @@ async def upload_v2_fhir_dataset(
                 detail=f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}"
             )
 
-        # Create dataset record
+
         dataset = V2FHIRdataset(
             name=name,
             filename=file.filename,
@@ -111,16 +111,16 @@ async def upload_v2_fhir_dataset(
         )
         
         db.add(dataset)
-        db.flush()  # Get the ID
+        db.flush()  
 
-        # Save file
+   
         file_path = os.path.join(UPLOAD_DIR, f"{dataset.id}_{file.filename}")
         
         with open(file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
 
-        # Update dataset with file info
+    
         dataset.file_path = file_path
         dataset.file_size = len(content)
         db.commit()
@@ -153,7 +153,7 @@ async def download_v2_fhir_dataset(
         if not os.path.exists(dataset.file_path):
             raise HTTPException(status_code=404, detail="File not found on disk")
         
-        # Update download stats
+    
         dataset.download_count = (dataset.download_count or 0) + 1
         dataset.last_downloaded = datetime.utcnow()
         db.commit()
@@ -183,10 +183,10 @@ async def process_v2_fhir_dataset(dataset_id: str, db: Session = Depends(get_db)
                 detail=f"Dataset is in '{dataset.status}' status and cannot be processed"
             )
  
-        # Process the dataset
+        
         success = etl_service.process_dataset(dataset_id, db)
         
-        # Refresh dataset from DB to get updated info
+   
         db.refresh(dataset)
         
         if success:
@@ -219,7 +219,7 @@ async def activate_v2_fhir_dataset(dataset_id: str, db: Session = Depends(get_db
                 detail=f"Dataset must be in 'ready' status to activate. Current status: {dataset.status}"
             )
         
-        # Activate the dataset
+        
         success = etl_service.activate_dataset(dataset_id, db)
         
         if success:
@@ -337,7 +337,7 @@ async def get_v2_fhir_dataset_stats(dataset_id: str, db: Session = Depends(get_d
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
     
-    # Get mapping statistics
+   
     total_mappings = db.query(V2FHIRdata).filter(
         V2FHIRdata.V2FHIRdataset_id == dataset_id
     ).count()
