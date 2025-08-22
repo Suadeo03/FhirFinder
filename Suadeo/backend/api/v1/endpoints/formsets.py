@@ -249,7 +249,7 @@ async def delete_formset(formset_id: str, db: Session = Depends(get_db)):
         if not formset:
             raise HTTPException(status_code=404, detail="Formset not found")
 
-        if formset.status == "active":
+        if formset.status == "active" or formset.status == "inactive":
             raise HTTPException(
                 status_code=400,
                 detail="Cannot delete active formset. Activate another formset first."
